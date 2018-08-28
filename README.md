@@ -7,9 +7,12 @@ A Rancher Stack may contain multiple containers, each of which may individually 
 Each container in the Stack is considered a separately adjustable component.
 
 For each component of the application, the following settings are automatically available when 'adjust --info' is run:
-replicas, mem, cpu
+* scale (number of container instances)
+* memory reservation
+* milli-cpu reservation
+* environment variables
 
-A configuration file must be present to define scale of variable modification ./app.yaml, any custom component settings in it are also returned by 'adjust --info' and map to environment variables of the matching container.
+A configuration file must be present to define scale of variable modification config.yaml, any custom component settings in it are also returned by 'adjust --info' and map to environment variables of the matching container.
 
 Currently the following parameters are supported:
 
@@ -20,49 +23,58 @@ environment variables:
 * cpu-reservation: millicpu share of the CPU resources
 * memory-reservation: memory reserved reserved in bytes/1024 (scale parameter will adjust)
 
-The following is an example app.yaml document, with examples of the available settings:
+The following is an example config.yaml document, with examples of the available settings:
 ```
-  servo-rancher:
-    project: "Default"
-    environment:
-      MEMORY:
-       type: int
-       min: 4096
-       max: 16384
-       step: 64
-       scale: M
-       multiplier: ''
-       wrapper: ''
-      GARBAGECOLLECTOR:
-        type: enum
-        values:
-          Serial:
-            -XX:+UseSerialGC
-          Parallel:
-            -XX:+UsePArallelGC -XX:ParallelGCThreads=10
-          CMS:
-            -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:CMSInitiatingOccupancyFraction=50 -XX:+UseCMSInitiatingOccupancyOnly
-          G1:
-          -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC
-    compose:
-     cpu-reservation:
-       type: float
-       min: 0.10
-       max: 2.00
-       step: 0.1
-       multiplier: '1'
-     memory-reservation:
-       type: int
-       min: 4096
-       max: 16384
-       step: 256
-       multiplier: '1024'
-     count:
-       type: int
-       min: 1
-       max: 10
-       step: 1
-       multiplier: '1'
+rancher:
+  mode:
+  project: "Default"
+  stack:
+    service:
+      front:
+        environment:
+          MEMORY:
+            min: 4096
+            max: 16384
+            step: 64
+            scale: M
+          GC:
+            values:
+              Serial:
+                -XX:+UseSerialGC
+              Parallel:
+                -XX:+UsePArallelGC -XX:ParallelGCThreads=10
+              CMS:
+                -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:CMSInitiatingOccupancyFraction=50 -XX:+UseCMSInitiatingOccupancyOnly
+              G1:
+                -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC
+          compose:
+            memory-reservation:
+              min: 4096
+              max: 16384
+              step: 256
+              multiplier: '1024'
+            scale:
+              min: 1
+              max: 10
+              step: 1
+      back:
+        environment:
+          MEMORY:
+            min: 4096
+            max: 16384
+            step: 64
+            scale: M
+          compose:
+            cpu-reservation:
+              min: 50
+              max: 2000
+              step: 50
+            scale:
+              min: 1
+              max: 10
+              step: 1
+    excluded:
+      - front-slb
 ```
 
 NOTE: MEMORY environment variable defines the java Memory allocation, and will inform the minimum memory available in the reservation parameter if both are present by including a 20% overhead above the MEMORY parameter for the memory-reservation.
