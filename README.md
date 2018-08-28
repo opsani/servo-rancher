@@ -21,7 +21,7 @@ environment variables:
 * memory-reservation: memory reserved reserved in bytes/1024 (scale parameter will adjust)
 
 The following is an example app.yaml document, with examples of the available settings:
-
+```
   servo-rancher:
     project: "Default"
     environment:
@@ -63,6 +63,7 @@ The following is an example app.yaml document, with examples of the available se
        max: 10
        step: 1
        multiplier: '1'
+```
 
 NOTE: MEMORY environment variable defines the java Memory allocation, and will inform the minimum memory available in the reservation parameter if both are present by including a 20% overhead above the MEMORY parameter for the memory-reservation.
 
