@@ -14,7 +14,7 @@ services:
     tty: true
     labels:
       io.rancher.container.pull_image: always
-  test-co-http-slb:
+  http-slb:
     image: rancher/lb-service-haproxy:v0.9.3
     labels:
       io.rancher.container.agent.role: environmentAdmin,agent

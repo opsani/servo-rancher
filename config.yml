@@ -1,8 +1,49 @@
 rancher:
   mode:
   project: "Default"
+  default:
+    environment:
+      MEMORY:
+        min: 4096
+        max: 16384
+        step: 64
+        scale: M
+    compose:
+      memory-reservation:
+        min: 4096
+        max: 16384
+        step: 256
+        multiplier: '1024'
+      scale:
+        min: 1
+        max: 10
+        step: 1
+  excluded:
+    - front-slb
   stack:
+    name: "http-test"
     service:
+      all:
+        envrionment:
+          MEMORY:
+            min: 4096
+            max: 16384
+            step: 64
+            scale: M
+        compose:
+          cpu-reservation:
+            min: 50
+            max: 2000
+            step: 50
+          memory-reservation:
+            min: 4096
+            max: 16384
+            step: 256
+            multiplier: '1024'
+          scale:
+            min: 1
+            max: 10
+            step: 1
       front:
         environment:
           MEMORY:
@@ -20,16 +61,16 @@ rancher:
                 -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:CMSInitiatingOccupancyFraction=50 -XX:+UseCMSInitiatingOccupancyOnly
               G1:
                 -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC
-          compose:
-            memory-reservation:
-              min: 4096
-              max: 16384
-              step: 256
-              multiplier: '1024'
-            scale:
-              min: 1
-              max: 10
-              step: 1
+        compose:
+          memory-reservation:
+            min: 4096
+            max: 16384
+            step: 256
+            multiplier: '1024'
+          scale:
+            min: 1
+            max: 10
+            step: 1
       back:
         environment:
           MEMORY:
@@ -37,14 +78,13 @@ rancher:
             max: 16384
             step: 64
             scale: M
-          compose:
-            cpu-reservation:
-              min: 50
-              max: 2000
-              step: 50
-            scale:
-              min: 1
-              max: 10
-              step: 1
-    excluded:
-      - front-slb
+        compose:
+          cpu-reservation:
+            min: 50
+            max: 2000
+            step: 50
+          scale:
+            min: 1
+            max: 10
+            step: 1
+
