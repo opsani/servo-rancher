@@ -1,16 +1,12 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
+from dotenv import load_dotenv
 import requests
 from requests.auth import HTTPBasicAuth
 import sys, json, os
 import yaml
 
-api_url='http://dish.kumulus.co:8080/v1'
-access_key='13C577DC2D45D92EA86B'
-secret_key='em8aoDg7Rybye9tmvAeN58HN7AULQQYW6sYssZoZ'
-ContentType = 'application/json'
-uuid_num='81a3e987-c703-4729-ad72-e894bc54124f'
-account_name='admin'
+load_dotenv()
 
 # Remove proxy if set (as it might block or send unwanted requests to the proxy)
 if "http_proxy" in os.environ:
@@ -18,27 +14,65 @@ if "http_proxy" in os.environ:
 if "https_proxy" in os.environ:
     del os.environ['https_proxy']
 
-def getReqType( reqType, uuid_num, account_name, api_v ):
-     if reqType == "uuid":
-       if uuid_num:
-        reqType = api_url + '/apiKey?uuid=' + uuid_num
-       else:
-        reqType = api_url + '/apiKey'
-     elif reqType == "accounts":
-       if account_name:
-        reqType = api_url + '/accounts?name=' + account_name
-       else:
-        reqType = api_url + '/accounts'
-     return reqType
+class Client:
+    def __init__(self, api_url, access_key, secret_key):
+        self.api_url = api_url
+        self.access_key = access_key
+        self.secret_key = secret_key
 
-# Set values
-headers                 = {}
-headers['Content-Type'] = ContentType
-reqType                 = "accounts"
-url                     = getReqType(reqType, uuid_num, account_name, api_url)
+    def scope_uri(self, base, option=None, delim='/'):
+        if option:
+            base = base + delim + option
+        return base
 
-r = requests.get(url, auth=(access_key, secret_key))
+    def uuid(self, uuid):
+        uri = self.scope_uri('/apiKey', uuid, '?uuid=')
+        return self.query(uri)
 
-data = json.loads(r.text)
-print json.dumps(data, sort_keys=True,
-                 indent=4 )
+    def accounts(self, name=None):
+        uri = self.scope_uri('/accounts', name, '?name=')
+        return self.query(uri)
+
+    def projects_uri(self, name=None):
+        return self.scope_uri('/projects', name)
+
+    def projects(self, name=None):
+        return self.query(self.projects_uri(name))
+
+    def environments_uri(self, project_name=None, name=None, action=None):
+        uri = self.scope_uri(self.projects_uri(project_name) + '/environments', name)
+        return self.scope_uri(uri, action, '?action=')
+
+    def environments(self, project_name, name=None, action=None):
+        return self.query(self.environments_uri(project_name, name, action))
+
+    def exportconfig(self, project_name, env_name):
+        response = self.environments(project_name, env_name, 'exportconfig')
+        return response['rancherCompose'] + response['dockerCompose']
+
+    def query(self, uri):
+        headers = {}
+        headers['Content-Type'] = 'application/json'
+        url = self.api_url + uri
+        print(url)
+        response = requests.get(url, auth=(self.access_key, self.secret_key))
+
+        if response.status_code == 200:
+            return json.loads(response.text)
+        else:
+            return response
+
+    def print(self, data):
+        print(json.dumps(data, sort_keys=True, indent=4))
+
+with open("config.yaml", 'r') as stream:
+    try:
+        print(yaml.safe_load(stream))
+    except yaml.YAMLError as exc:
+        print(exc)
+
+client = Client(os.getenv('API_URL'), os.getenv('ACCESS_KEY'), os.getenv('SECRET_KEY'))
+
+print("PROJECTS:")
+r = client.exportconfig('1a5', '1st19')
+print(r)

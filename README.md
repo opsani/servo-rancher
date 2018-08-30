@@ -1,4 +1,4 @@
-# servo-k8s
+# servo-rancher
 Optune servo driver for Rancher (v1.6)
 
 This driver supports an application deployed via Rancher as a Stack.
@@ -74,3 +74,11 @@ Limitations:
 - works on default "docker compose" compute and memory parameters
 - it is currently possible to pass one environment variable: memory
 - GARBAGECOLLECTOR variable is not available, but will initially only support change in type, not internal values
+
+# GET GOING
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r ./requirements.txt
+
+./basic.py
