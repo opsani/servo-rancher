@@ -27,16 +27,16 @@ The following is an example config.yaml document, with examples of the available
 ```
 ## These elements are required
 # Config group for rancher based adjust driver
-Rancher:
+rancher:
 # Rancher Environment(UI) or Project(API) name
   project: "Default"
 # Target Rancher Stack name
   stack: "http-test"
-# API key
-  API_KEY: "ABCDEFG"
-# API secret key
-  API_SECRET: "HIJKLMNO"
 ## These elements are optional
+# API key - if not passed as a secret via rancher (api_key)
+  api_key: "ABCDEFG"
+# API secret key - if not passed as a secret via rancher (api_secret)
+  api_secret: "HIJKLMNO"
 # Default parameters for any otherwise undefined resource
   default:
     environment:

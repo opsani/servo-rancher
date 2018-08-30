@@ -1,8 +1,8 @@
 rancher:
   project: "Default"
   stack: "http-test"
-  API_KEY: "ABCDEFG"
-  API_SECRET: "HIJKLMNO"
+  api_key: "ABCDEFG"
+  api_secret: "HIJKLMNO"
   default:
     environment:
       MEMORY:
