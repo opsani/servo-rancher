@@ -25,96 +25,47 @@ environment variables:
 
 The following is an example config.yaml document, with examples of the available settings:
 ```
-rancher:
-  mode:
+## These elements are required
+# Config group for rancher based adjust driver
+Rancher:
+# Rancher Environment(UI) or Project(API) name
   project: "Default"
+# Target Rancher Stack name
+  stack: "http-test"
+# API key
+  API_KEY: "ABCDEFG"
+# API secret key
+  API_SECRET: "HIJKLMNO"
+## These elements are optional
+# Default parameters for any otherwise undefined resource
   default:
     environment:
       MEMORY:
         min: 4096
         max: 16384
         step: 64
-        scale: M
+# Template parameter to define transformation needed between Optune and end device
+        template: "{{name|toupper}}: '{{parameter}}M'"
+# Docker standard parameters would be set in the "compose" section
     compose:
-      memory-reservation:
-        min: 4096
-        max: 16384
-        step: 256
-        multiplier: '1024'
-      scale:
-        min: 1
-        max: 10
-        step: 1
-
-  stack:
-    name: "http-test"
-    service:
-      all:
-        envrionment:
-          MEMORY:
-            min: 4096
-            max: 16384
-            step: 64
-            scale: M
-        compose:
-          cpu-reservation:
-            min: 50
-            max: 2000
-            step: 50
-          memory-reservation:
-            min: 4096
-            max: 16384
-            step: 256
-            multiplier: '1024'
-          scale:
-            min: 1
-            max: 10
-            step: 1
-      excluded:
-        - front-slb
-      front:
-        environment:
-          MEMORY:
-            min: 4096
-            max: 16384
-            step: 64
-            scale: M
-          GC:
-            values:
-              Serial:
-                -XX:+UseSerialGC
-              Parallel:
-                -XX:+UsePArallelGC -XX:ParallelGCThreads=10
-              CMS:
-                -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+CMSParallelRemarkEnabled -XX:CMSInitiatingOccupancyFraction=50 -XX:+UseCMSInitiatingOccupancyOnly
-              G1:
-                -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC
-        compose:
-          memory-reservation:
-            min: 4096
-            max: 16384
-            step: 256
-            multiplier: '1024'
-          scale:
-            min: 1
-            max: 10
-            step: 1
-      back:
-        environment:
-          MEMORY:
-            min: 4096
-            max: 16384
-            step: 64
-            scale: M
-        compose:
-          cpu-reservation:
-            min: 50
-            max: 2000
-            step: 50
-          scale:
-            min: 1
-            max: 10
-            step: 1
+# Options are cpu, memory, and replicas
+      cpu:
+        min: 500
+# Service section for specific service targets/hints
+  service:
+# Name of service is also the group key
+    front:
+# Parameter section to modify, allowed values are 'environment' and 'compose'
+      environment:
+# Example to highlight another templated environment variable
+        GC:
+          template: "{{name}}: '-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}'"
+# Services to exclude
+    http-slb:
+      exclude: true
+# Alternate exclusion form (no service section)
+  exclude:
+    - http-slb
 ```
 
 NOTE: MEMORY environment variable defines the java Memory allocation, and will inform the minimum memory available in the reservation parameter if both are present by including a 20% overhead above the MEMORY parameter for the memory-reservation.

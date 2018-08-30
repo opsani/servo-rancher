@@ -1,0 +1,25 @@
+rancher:
+  project: "Default"
+  stack: "http-test"
+  API_KEY: "ABCDEFG"
+  API_SECRET: "HIJKLMNO"
+  default:
+    environment:
+      MEMORY:
+        min: 4096
+        max: 16384
+        step: 64
+        template: "MEMORY: '{{parameter}}M'"
+    compose:
+      cpu:
+        min: 500
+  service:
+    front:
+      environment:
+        GC:
+          template: "GC: '-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}'"
+    http-slb:
+      exclude: true
+
+  excluded:
+    - http-slb
