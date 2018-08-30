@@ -24,7 +24,7 @@ services:
       interval: 2000
       strategy: recreate
       reinitializing_timeout: 60000
-  test-co-http-slb:
+  http-slb:
     scale: 1
     start_on_create: true
     lb_config:
