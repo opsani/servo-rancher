@@ -35,17 +35,17 @@ class Client:
 
     def uuid(self, uuid):
         uri = self.scope_uri('/apiKey', uuid, '?uuid=')
-        return self.query(uri)
+        return self.render(uri)
 
     def accounts(self, name=None):
         uri = self.scope_uri('/accounts', name, '?name=')
-        return self.query(uri)
+        return self.render(uri)
 
     def projects_uri(self, name=None):
         return self.scope_uri('/projects', name)
 
     def projects(self, name=None):
-        return self.query(self.projects_uri(name))
+        return self.render(self.projects_uri(name))
 
     # Actions:
     #   * activateservices
@@ -58,50 +58,29 @@ class Client:
     # https://rancher.com/docs/rancher/v1.5/en/api/v1/api-resources/environments/#update
     def environments(self, project_name, name=None, action=None, body=None):
         uri = self.scope_uri(self.projects_uri(project_name) + '/environments', name)
-        uri = self.scope_uri(uri, action, '?action=')
-        return self.render(uri, body)
+        return self.render(uri, action, body)
 
     # https://rancher.com/docs/rancher/v1.5/en/api/v1/api-resources/service/#update
     def services(self, project_name, name=None, action=None, body=None):
         uri = self.scope_uri(self.projects_uri(project_name) + '/services', name)
-        uri = self.scope_uri(uri, action, '?action=')
-        return self.render(uri, body)
+        return self.render(uri, action, body)
 
     def capabilities(self, project_name=None):
         return self.defaults
 
-    def render(self, uri, body=None):
-        if body:
-            return self.update(uri, body)
-        else:
-            return self.query(uri)
-
-    def query(self, uri):
+    def render(self, uri, action=None, body=None):
         url = self.api_url + uri
         print(url)
 
-        response = requests.get(url, auth=(self.access_key, self.secret_key))
-
-        if response.status_code == 200:
-            return json.loads(response.text)
+        if action:
+            url = url + '?action=' + action
+            response = requests.post(url, auth=(self.access_key, self.secret_key))
+        elif body:
+            response = requests.put(url, data=body, auth=(self.access_key, self.secret_key))
         else:
-            return response
+            response = requests.get(url, auth=(self.access_key, self.secret_key))
 
-    def update(self, uri, body):
-        url = self.api_url + uri
-        print(url)
-
-        print("PUT "+url)
-        print(body)
-        response = requests.put(url, data=body, auth=(self.access_key, self.secret_key))
-        print("   " + str(response))
-        if response.status_code == 200:
-            response_json = json.loads(response.text)
-            for key in body.keys():
-                print('   ' + key + ' : ' + str(response_json[key]))
-        else:
-            print('Oops')
-            print(response.text)
+        return json.loads(response.text)
 
     def print(self, data):
         print(json.dumps(data, sort_keys=True, indent=4))
@@ -135,4 +114,15 @@ body['scalePolicy']['max'] = 0.8
 
 project_id = '1a5'
 service_id = '1s37'
-client.print(client.services(project_id, service_id, body=body))
+
+print('Services for ' + project_id)
+for service in client.services(project_id)['data']:
+    print(' ' + service['id'])
+
+print('Updating service' + service_id + ' with ' + str(body))
+response = client.services(project_id, service_id, body=body)
+
+for key in body.keys():
+    print('  ' + key + ': ' + str(response[key]))
+
+client.print(client.services(project_id, service_id, action='finishupgrade'))
