@@ -1,4 +1,4 @@
-# servo-k8s
+# servo-rancher
 Optune servo driver for Rancher (v1.6)
 
 This driver supports an application deployed via Rancher as a Stack.
@@ -131,3 +131,12 @@ Note that the default service created is available on port 8090, and it will onl
 A quick check can be made to ensure that the application is running by running a curl command on the local Rancher host:
 
 curl http://localhost:8090/?call=http%3A%2F%2Fback%3A8080%2F%3Fbusy%3D40\&busy=10
+
+
+# GET GOING
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r ./requirements.txt
+
+./basic.py
