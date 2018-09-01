@@ -1,4 +1,4 @@
-# List all projects
+## List all projects
 
 ```
 $ ./adjust --projects
@@ -8,7 +8,7 @@ http://rancher.kumulus.co:8080/v1/projects
 }
 ```
 
-# List project information
+## List project information
 
 ```
 $ ./adjust --projects 1a5
@@ -41,7 +41,7 @@ http://rancher.kumulus.co:8080/v1/projects/1a5
 }
 ```
 
-# List all services for the configured project
+## List all services for the configured project
 
 ```
 $ ./adjust --services
@@ -61,7 +61,7 @@ http://rancher.kumulus.co:8080/v1/projects/1a5/services
 }
 ```
 
-# List all instances for a given service
+## List all instances for a given service
 
 ```
 $ ./adjust --services front
@@ -77,7 +77,7 @@ http://rancher.kumulus.co:8080/v1/projects/1a5/services/1s8
 }
 ```
 
-# List instance information
+## List instance information
 
 ```
 $ ./adjust --instances front 1i30
@@ -96,7 +96,7 @@ http://rancher.kumulus.co:8080/v1/projects/1a5/services/1s8/instances/front
 }
 ```
 
-# List default capabilities
+## List default capabilities
 
 ```
 $ ./adjust --capabilities
@@ -117,7 +117,7 @@ $ ./adjust --capabilities
 }
 ```
 
-# List capabilities for a service
+## List capabilities for a service
 
 ```
 $ ./adjust --capabilities front
@@ -141,7 +141,7 @@ $ ./adjust --capabilities front
 }
 ```
 
-# List capabilities for a service which is excluded
+## List capabilities for a service which is excluded
 
 ```
 $ ./adjust --capabilities http-slb
