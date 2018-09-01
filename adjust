@@ -1,27 +1,17 @@
-## THIS IS NOT THE CODE FOR THE RANCHER ADJUST DRIVER
-## This came from the servo-k8s driver as an example/placeholder
-
-
 #!/usr/bin/env python3
-from __future__ import print_function
-
 import sys
 import os
 import errno
 import subprocess
 import time
-
-# import re
-import requests
 import json
-import yaml
-# import signal
+
+from client import Client
+from client import Config
 
 json_enc = json.JSONEncoder(separators=(",",":")).encode
 
 # === constants
-DESC_FILE = "./app.yaml"
-EXCLUDE_LABEL = 'optune.ai/exclude'
 Gi=1024*1024*1024
 MEM_STEP=64*1024*1024 # minimal useful increment in mem limit/reserve, bytes
 CPU_STEP=0.01 # 1% of a core (even though 1 millicore is the highest resolution supported by k8s)
@@ -41,48 +31,6 @@ class DeployError(Exception): # raised when deploy ends in failed status
 
 class ConfigError(Exception): # user-provided descriptor not readable
     pass
-
-
-def kubectl(namespace, *args):
-    r = [ 'kubectl' ]
-    if not bool(int(os.environ.get('OPTUNE_USE_DEFAULT_NAMESPACE', '0'))):
-        r.append('--namespace=' + namespace)
-    return r + list(args)
-
-def k_get(namespace, qry):
-    '''run kubectl get and return parsed json output'''
-
-    # this will raise exception if it fails:
-    r = subprocess.check_output(kubectl(namespace, 'get', '--output=json', qry))
-    r = r.decode('utf-8')
-    r = json.loads(r)
-    return r
-
-def k_patch(namespace, typ, obj, patchstr):
-    '''run kubectl patch and return parsed json output'''
-
-    # this will raise exception if it fails:
-    cmd = kubectl(namespace, "patch", "--output=json", typ, obj, "-p", patchstr)
-    r = subprocess.check_output(cmd)
-    r = r.decode('utf-8')
-    r = json.loads(r)
-    return r
-
-def read_desc():
-    '''load the user-defined application descriptor and all *local* model and env files referenced by it'''
-
-    try:
-        f = open(DESC_FILE)
-        d = yaml.load(f)
-    except IOError as e:
-        if e.errno == errno.ENOENT:
-            return {} # only if 'file not found'
-        raise ConfigError("cannot read configuration from {}:{}".format(DESC_FILE,e.strerror))
-    except yaml.error.YAMLError as e:
-        raise ConfigError("syntax error in {}: {}".format(DESC_FILE,str(e)))
-    # everything else: crash
-
-    return d
 
 def numval(v,min,max,step=1):
     """shortcut for creating linear setting descriptions"""
@@ -190,7 +138,6 @@ def dbg_log(*args):
 def query(appname, desc=None):
     r, _ = raw_query(appname, desc)
     return r
-
 
 class waiter(object):
     """an object for use to poll and wait for a condition;
@@ -397,11 +344,17 @@ def update(appname, data):
     # FIXME: doc says return should be empty ({})
     print(json_enc({"status":"ok"}))
 
-# cancel not supported
-#def cancel(signum,frame):
-#    if not wait_in_progress:
-#        sys_exit(1)
-#    print ("aborting operation...",file=sys.stderr)
+def pull_data_objects(data):
+    hash = {}
+    for datum in r['data']:
+        hash[datum['name']] = datum['id']
+    return hash
+
+def env_data(data, capabilities):
+    hash = {}
+    for capability in capabilities.keys():
+        hash[capability] = data.get(capability, capabilities[capability])
+    return hash
 
 usage="""adjust --version
 adjust --info
@@ -416,47 +369,96 @@ if __name__ == "__main__":
 #    signal.signal(signal.SIGTERM, cancel)
 #    signal.signal(signal.SIGINT, cancel)
 
-    if len(sys.argv)<2:
+    config = Config()
+    client = Client(config)
+
+    if len(sys.argv) < 2:
         sys.exit(usage)
-
-    if sys.argv[1]=="--version":
+    elif sys.argv[1]=="--version":
         print(version)
-        sys.exit(0)
-
-    if sys.argv[1]=="--info":
+    elif sys.argv[1]=="--info":
         print(json.dumps({"version":version, "has_cancel":False}))
-        sys.exit(0)
-
-    if sys.argv[1]=="--query":
-        if len(sys.argv)<3:
-            sys.exit(usage)
-        appname = sys.argv[2]
+    elif sys.argv[1]=="--capabilities":
+        if(len(sys.argv) > 2):
+            service_id = sys.argv[2]
+        else:
+            service_id = None
+        client.print(client.capabilities(service_id))
+    elif sys.argv[1]=="--projects":
+        if(len(sys.argv) > 2):
+            project_id = sys.argv[2]
+        else:
+            project_id = None
         try:
-            d = read_desc()
-        except ConfigError as e:
-            print(json.dumps({"error":"config", "class":"config", "message":str(e)}))
-            sys.exit(3)
-        d.pop("driver",None)
-        try:
-            r = query(appname,d)
-        except (ApiError,DeployError) as e:
+            r = client.projects(project_id)
+        except (Exception) as e:
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
-        print(json.dumps(r))
-        sys.exit(0)
 
-    # update
-    appname = sys.argv[1]
-    data = json.load(sys.stdin)
-    # data = yaml.load(sys.stdin) # DEBUG
-    try:
-        update(appname,data)
-    except (ApiError,DeployError) as e:
-        print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-        sys.exit(3)
-    except ConfigError as e:
-        print(json.dumps({"error":"config", "class":"config", "message":str(e)}))
-        sys.exit(3)
-    # all other exceptions: default handler - stack trace and sys.exit(1)
+        if project_id == None: # List project names
+            r = pull_data_objects(r)
+        else:
+            hash = {}
+            hash['data'] = r.get('data')
+            hash['name'] = r.get('name')
+            hash['id'] = r.get('id')
+            r = hash
 
-# TBD: no support for multiple apps with different descriptors (desc file /app.yaml is not app-specific)
+        client.print(r)
+    elif sys.argv[1]=="--services":
+        if(len(sys.argv) > 2):
+            service_id = sys.argv[2]
+        else:
+            service_id = None
+        try:
+            r = client.services(name=service_id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
+
+        if service_id == None: # List service names
+            r = pull_data_objects(r)
+        else:
+            hash = {}
+            hash['instanceIds'] = r.get('instanceIds')
+            hash['name'] = r.get('name')
+            hash['id'] = r.get('id')
+            r = hash
+
+        client.print(r)
+
+    elif sys.argv[1]=="--instances":
+        if(len(sys.argv) > 2):
+            service_id = sys.argv[2]
+        else:
+            service_id = None
+        if(len(sys.argv) > 3):
+            instance_id = sys.argv[2]
+        else:
+            instance_id = None
+        try:
+            r = client.instances(service_name=service_id, name=instance_id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
+
+        if instance_id == None: # List instance names
+            r = pull_data_objects(r)
+        else:
+            r = env_data(r['data'][0], client.capabilities(service_id))
+
+        client.print(r)
+    else:
+        # update
+        appname = sys.argv[1]
+
+        if(appname.startswith('-')):
+            print("Command '{}' not found.".format(appname))
+            exit()
+
+        data = json.load(sys.stdin)
+        try:
+            update(appname, data)
+        except Exception as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
