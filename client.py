@@ -101,29 +101,31 @@ class Client:
     def print(self, data):
         print(json.dumps(data, sort_keys=True, indent=4))
 
+class Config:
+    def __init__(self):
+        self.access_key = self.read_key('/var/run/api_key', 'ACCESS_KEY')
+        self.secret_key = self.read_key('/var/run/secret_key', 'SECRET_KEY')
+        self.api_url = os.getenv('API_URL')
+        self.config_file = os.getenv('CONFIG', 'config.yaml')
+
+    def read_key(self, filename, default_env=None):
+        try:
+            file = open(filename, 'r')
+            return file.readline().rstrip('\n')
+        except:
+            return os.getenv(default_env)
+
+
+config = Config()
 # Pull possible parameters from the environment
 client = Client(
-    os.getenv('API_URL'),
-    os.getenv('ACCESS_KEY'),
-    os.getenv('SECRET_KEY'),
-    'config.yaml')
-
-# This example iterates over all projects and environments
-#for project in client.projects()['data']:
-#    project_id = project['id']
-#    print('Project: ' + project_id)
-#    for env in client.environments(project_id)['data']:
-#        env_id = env['id']
-#        print('Environment: ' + env_id)
-#        print(env['environment'])
-#
-#        body = {}
-#        body['environment'] = {}
-#        body['environment']['FOO'] = 'BAR'
-#        client.environments(project_id, env_id, body=body)
+    config.api_url,
+    config.access_key,
+    config.secret_key,
+    config.config_file)
 
 # This is an example for a sinlge project
-# it iterates over all servies and just lists their IDs
+# it iterates over all services and just lists their IDs
 client.print(client.projects())
 project_id = client.projects()['data'][0]['id']
 
