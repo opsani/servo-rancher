@@ -1,7 +1,7 @@
 rancher:
   project: "Default"
   stack: "http-test"
-  api_url: "http://ranger.kumulus.co:8080/v1"
+  api_url: "http://rancher.kumulus.co:8080/v1"
   default:
     environment:
       MEMORY:

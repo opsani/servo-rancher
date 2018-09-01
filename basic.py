@@ -124,7 +124,8 @@ client = Client(
 
 # This is an example for a sinlge project
 # it iterates over all servies and just lists their IDs
-project_id = '1a5'
+client.print(client.projects())
+project_id = client.projects()['data'][0]['id']
 
 print('Services for ' + project_id)
 for service in client.services(project_id)['data']:
@@ -139,7 +140,7 @@ body['scalePolicy']['min'] = 0.1
 body['scalePolicy']['max'] = 0.8
 #body['metadata']['Time'] = str(datetime.datetime.utcnow())
 
-service_id = '1s37'
+service_id = client.services(project_id)['data'][0]['id']
 
 # Then we try to update the service
 print('Updating service' + service_id + ' with ' + str(body))
