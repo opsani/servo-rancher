@@ -51,8 +51,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Adjust Rancher Stack Settings')
     parser.add_argument('stackname', nargs='?', help='Name of the stack to update. Pass a capability.json file to update that stack.', default=None)
     parser.add_argument('--version', help='Print the current version', action='store_true')
-    parser.add_argument('--info', help='Print version and cancel capability in JSON.', action='store_true')
+    parser.add_argument('--info', help='Print version and capabilities in JSON.', action='store_true')
     parser.add_argument('--describe', nargs='?', help='Describe actions which can be performed on a stack.', action='append')
+    parser.add_argument('--action', nargs=2, help='Perform a service action')
     parser.add_argument('--capabilities', nargs='?', help='List the possible capabilites of a given service.', action='append')
 
     args = parser.parse_args()
@@ -67,6 +68,18 @@ if __name__ == "__main__":
         try:
             r = client.describe(stack_id)
         except (Exception) as e:
+            print(e, file=sys.stderr)
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
+
+        client.print(r)
+    elif args.action:
+        stack_id = args.action[0]
+        action = args.action[1]
+        try:
+            r = client.services(name=stack_id, action=action)
+        except (Exception) as e:
+            print(e, file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
 
@@ -78,6 +91,7 @@ if __name__ == "__main__":
         try:
             client.services(name=stackname, body=data[stackname])
         except Exception as e:
+            print(e, file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
     else:

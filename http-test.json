@@ -1,13 +1,40 @@
 {
     "back": {
         "compose": null,
-        "environment": null,
-        "scale": 2
+        "launchConfig": {
+            "environment": {
+                "MEMORY": {
+                    "max": 16384,
+                    "min": 512,
+                    "step": 64,
+                    "template": "MEMORY: '{{parameter}}M'"
+                }
+            },
+            "memory": {
+                "max": 16384,
+                "min": 512,
+                "step": 64
+            },
+            "vcpu": {
+                "max": 10,
+                "min": 1
+            }
+        },
+        "scale": 2,
+        "scalePolicy": null
     },
     "front": {
         "compose": null,
-        "environment": null,
-        "scale": 2
+        "launchConfig": {
+            "environment": {
+                "GC": "-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}",
+                "MEMORY": 512
+            },
+            "memoryMb": 512,
+            "vcpu": 4
+        },
+        "scale": 2,
+        "scalePolicy": null
     },
     "http-slb": {}
 }

@@ -103,7 +103,23 @@ class Client:
     # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/service/
     def services(self, project_name=None, name=None, action=None, body=None):
         uri = self.services_uri(project_name, name)
-        return self.render(uri, action, body)
+        if body and body.get('launchConfig'):
+            service = self.services(name=name)
+            launchConfig = service.get('launchConfig', {})
+            launchConfig = self.merge(launchConfig, body.pop('launchConfig'))
+            strategy = { 'inServiceStrategy': {
+                'type': 'inServiceUpgradeStrategy',
+                'batchSize': 1,
+                'intervalMillis': 2000,
+                'startFirst': False,
+                'launchConfig': launchConfig,
+                'secondaryLaunchConfigs': [] } }
+            response = {}
+            response['upgrade'] = self.render(uri, 'upgrade', strategy)
+            response['finish'] = self.render(uri, 'finishupgrade')
+            return response
+        else:
+            return self.render(uri, action, body)
 
     def stacks_uri(self, project_name=None, name=None):
         return self.scope_uri(self.projects_uri(project_name, True) + '/stacks', self.stack_id(name))
@@ -127,8 +143,16 @@ class Client:
             service = self.services(name=service_id)
             svc_name = service.get('name')
             response[svc_name] = {}
-            for capability in self.capabilities(svc_name):
-                response[svc_name][capability] = service.get(capability)
+            capabilities = self.capabilities(svc_name)
+            for capability in capabilities:
+                # This makes it a bit less generic, but easier to reason about for now
+                if capability == 'launchConfig':
+                    response[svc_name]['launchConfig'] = {}
+                    launchconfig = capabilities.get('launchConfig', {})
+                    for key in launchconfig:
+                        response[svc_name]['launchConfig'][key] = launchconfig.get(key)
+                else:
+                    response[svc_name][capability] = service.get(capability)
         return response
 
     # Render is the workhorse. It takes a URI and optional action or body
@@ -147,29 +171,35 @@ class Client:
     #   * rollback
     def render(self, uri, action=None, body=None):
         url = self.config.api_url + uri
-        print(url, file=sys.stderr) # DEBUG URL info to stderr
 
         auth = (self.config.access_key, self.config.secret_key)
 
         if action:
             url = url + '?action=' + action
-            response = requests.post(url, auth=auth)
+            print("POST {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
+            #self.print(body, file=sys.stderr)
+            response = requests.post(url, json=body, auth=auth, headers=self.headers)
         elif body:
-            response = requests.put(url, data=body, auth=auth)
+            print("PUT {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
+            response = requests.put(url, json=body, auth=auth, headers=self.headers)
         else:
-            response = requests.get(url, auth=auth)
+            print("GET {}".format(url), file=sys.stderr,) # DEBUG URL info to stderr
+            response = requests.get(url, auth=auth, headers=self.headers)
 
         data = json.loads(response.text)
-        if response.status_code == requests.codes.ok:
+        try:
+            response.raise_for_status()
             return data
-        else:
-            error = { 'error': response.status_code, 'class': 'failure', 'message:': data['message']}
+        except requests.exceptions.HTTPError as http_error:
+            self.print(response.status_code)
+            self.print(data, file=sys.stderr)
+            error = { 'error': response.status_code, 'class': 'failure', 'message:': data.get('message') }
             self.print(error)
             sys.exit(3)
 
     # Helper to print out a dict payload
-    def print(self, data):
-        print(json.dumps(data, sort_keys=True, indent=4))
+    def print(self, data, file=sys.stdout):
+        print(json.dumps(data, sort_keys=True, indent=4), file=file)
 
 class Config:
     def __init__(self):
@@ -248,7 +278,7 @@ if __name__ == "__main__":
         r = handle_command(args.projects[0], lambda id :client.projects(id), ['id', 'name', 'data'])
         client.print(r)
     elif args.services:
-        r = handle_command(args.services[0], lambda id :client.services(name=id), ['id', 'name', 'instanceIds'])
+        r = handle_command(args.services[0], lambda id :client.services(name=id), ['id', 'name', 'launchConfig'])
         client.print(r)
     elif args.stacks:
         r = handle_command(args.stacks[0], lambda id :client.stacks(name=id), ['id', 'name', 'serviceIds'])
