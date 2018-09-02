@@ -1,0 +1,13 @@
+{
+    "back": {
+        "compose": null,
+        "environment": null,
+        "scale": 2
+    },
+    "front": {
+        "compose": null,
+        "environment": null,
+        "scale": 2
+    },
+    "http-slb": {}
+}

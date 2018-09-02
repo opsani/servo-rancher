@@ -45,16 +45,20 @@ class Client:
     def service_id(self, name):
         return self.name_to_id(name, 'service', lambda: self.services())
 
+    def stack_id(self, name):
+        return self.name_to_id(name, 'stack', lambda: self.stacks())
+
     # This method will return what a caller may be able to do based on the
     # initialized configuration. It only supports service overrides.
     def capabilities(self, service_name=None):
         merged = self.merge(
-            self.config.defaults.copy(),
+            self.config.services_defaults.copy(),
             self.config.services.get(service_name, {}))
         if merged.get('exclude', None) != None or service_name in self.config.excluded:
             return {}
         return merged
 
+    # Recursive deep dictionary merge
     def merge(self, source, destination):
         for key, value in source.items():
             if isinstance(value, dict):
@@ -63,7 +67,6 @@ class Client:
                 self.merge(value, node)
             else:
                 destination[key] = value
-
         return destination
 
     # constructs a URI if given some options
@@ -74,10 +77,12 @@ class Client:
             base = base + delim + option
         return base
 
+    # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/apiKey/
     def uuid(self, uuid):
         uri = self.scope_uri('/apiKey', uuid, '?uuid=')
         return self.render(uri)
 
+    # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/account/
     def accounts(self, name=None):
         uri = self.scope_uri('/accounts', name, '?name=')
         return self.render(uri)
@@ -87,25 +92,43 @@ class Client:
             name = self.config.project
         return self.scope_uri('/projects', self.project_id(name))
 
+    # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/project/
     def projects(self, name=None):
         return self.render(self.projects_uri(name))
-
-    # https://rancher.com/docs/rancher/v1.5/en/api/v1/api-resources/environments/#update
-    def environments(self, project_name=None, name=None, action=None, body=None):
-        uri = self.scope_uri(self.projects_uri(project_name, True) + '/environments', name)
-        return self.render(uri, action, body)
 
     def services_uri(self, project_name=None, name=None):
         return self.scope_uri(self.projects_uri(project_name, True) + '/services', self.service_id(name))
 
-    # https://rancher.com/docs/rancher/v1.5/en/api/v1/api-resources/service/#update
+    # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/service/
     def services(self, project_name=None, name=None, action=None, body=None):
         uri = self.services_uri(project_name, name)
+        return self.render(uri, action, body)
+
+    def stacks_uri(self, project_name=None, name=None):
+        return self.scope_uri(self.projects_uri(project_name, True) + '/stacks', self.stack_id(name))
+
+    # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/stack/
+    def stacks(self, project_name=None, name=None, action=None, body=None):
+        uri = self.stacks_uri(project_name, name)
         return self.render(uri, action, body)
 
     def instances(self, project_name=None, service_name=None, name=None, action=None, body=None):
         uri = self.scope_uri(self.services_uri(project_name, service_name) + '/instances', name)
         return self.render(uri, action, body)
+
+    # Describes what parameters can be tweaked for the given stack
+    def describe(self, stack_name=None):
+        if stack_name == None:
+            stack_name = self.config.stack
+        response = {}
+        stack = self.stacks(name=stack_name)
+        for service_id in stack.get('serviceIds'):
+            service = self.services(name=service_id)
+            svc_name = service.get('name')
+            response[svc_name] = {}
+            for capability in self.capabilities(svc_name):
+                response[svc_name][capability] = service.get(capability)
+        return response
 
     # Render is the workhorse. It takes a URI and optional action or body
     # if there is an action, a POST is made to the URI for that action
@@ -161,8 +184,8 @@ class Config:
                 self.secret_key = conf.get('api_secret', self.secret_key)
                 self.project = conf.get('project')
                 self.stack = conf.get('stack')
-                self.defaults = conf.get('default', {})
                 self.services = conf.get('service', {})
+                self.services_defaults = self.services.get('defaults', {})
                 self.excluded = conf.get('excluded', [])
         except IOError as e:
             if e.errno == errno.ENOENT:

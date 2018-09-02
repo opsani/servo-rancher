@@ -1,21 +1,25 @@
 rancher:
   project: "Default"
   stack: "http-test"
-  api_url: "http://rancher.kumulus.co:8080/v1"
+  api_url: "http://rancher.kumulus.co:8080/v2-beta"
   # api_key: "ABCDEFG"
   # api_secret: "HIJKLMNO"
-  default:
-    environment:
-      MEMORY:
-        min: 4096
-        max: 16384
-        step: 64
-        template: "MEMORY: '{{parameter}}M'"
-    compose:
-      cpu:
-        min: 500
   service:
+    defaults:
+      scale:
+        min: 1
+      environment:
+        MEMORY:
+          min: 4096
+          max: 16384
+          step: 64
+          template: "MEMORY: '{{parameter}}M'"
+      compose:
+        cpu:
+          min: 500
     front:
+      scale:
+        max: 5
       environment:
         GC:
           template: "GC: '-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}'"

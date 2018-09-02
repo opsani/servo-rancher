@@ -365,10 +365,6 @@ Note: set OPTUNE_USE_DEFAULT_NAMESPACE=1 environment var when embedded into app
 version="1.1"
 
 if __name__ == "__main__":
-#    signal.signal(signal.SIGUSR1, cancel)
-#    signal.signal(signal.SIGTERM, cancel)
-#    signal.signal(signal.SIGINT, cancel)
-
     config = Config()
     client = Client(config)
 
@@ -421,6 +417,27 @@ if __name__ == "__main__":
             hash = {}
             for key in ['id', 'name', 'instanceIds']:
                 hash[key] = r.get(key)
+            #r = hash
+
+        client.print(r)
+
+    elif sys.argv[1]=="--stacks":
+        if(len(sys.argv) > 2):
+            stack_id = sys.argv[2]
+        else:
+            stack_id = None
+        try:
+            r = client.stacks(name=stack_id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
+
+        if stack_id == None: # List service names
+            r = pull_data_objects(r)
+        else:
+            hash = {}
+            for key in ['id', 'name', 'serviceIds']:
+                hash[key] = r.get(key)
             r = hash
 
         client.print(r)
@@ -446,17 +463,31 @@ if __name__ == "__main__":
             r = env_data(r['data'][0], client.capabilities(service_id))
 
         client.print(r)
+    elif sys.argv[1] == '--describe':
+        if(len(sys.argv) > 2):
+            stack_id = sys.argv[2]
+        else:
+            stack_id = None
+
+        try:
+            r = client.describe(stack_id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
+
+        client.print(r)
     else:
         # update
-        appname = sys.argv[1]
+        stackname = sys.argv[1]
 
-        if(appname.startswith('-')):
+        if(stackname.startswith('-')):
             print("Command '{}' not found.".format(appname))
             exit()
 
         data = json.load(sys.stdin)
         try:
-            update(appname, data)
+            for service in data.keys():
+                client.services(name=service, body=data[service])
         except Exception as e:
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
