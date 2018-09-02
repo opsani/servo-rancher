@@ -399,9 +399,8 @@ if __name__ == "__main__":
             r = pull_data_objects(r)
         else:
             hash = {}
-            hash['data'] = r.get('data')
-            hash['name'] = r.get('name')
-            hash['id'] = r.get('id')
+            for key in ['id', 'name', 'data']:
+                hash[key] = r.get(key)
             r = hash
 
         client.print(r)
@@ -420,9 +419,8 @@ if __name__ == "__main__":
             r = pull_data_objects(r)
         else:
             hash = {}
-            hash['instanceIds'] = r.get('instanceIds')
-            hash['name'] = r.get('name')
-            hash['id'] = r.get('id')
+            for key in ['id', 'name', 'instanceIds']:
+                hash[key] = r.get(key)
             r = hash
 
         client.print(r)

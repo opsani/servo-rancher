@@ -139,7 +139,8 @@ class Client:
         if response.status_code == requests.codes.ok:
             return data
         else:
-            self.print(data)
+            error = { 'error': response.status_code, 'class': 'failure', 'message:': data['message']}
+            self.print(error)
             sys.exit(3)
 
     # Helper to print out a dict payload
@@ -148,16 +149,16 @@ class Client:
 
 class Config:
     def __init__(self):
-        self.access_key = self.read_key('/var/run/api_key', 'ACCESS_KEY')
-        self.secret_key = self.read_key('/var/run/secret_key', 'SECRET_KEY')
-        self.api_url = os.getenv('API_URL')
-        self.config_file = os.getenv('CONFIG', 'config.yaml')
+        self.access_key = self.read_key('/var/secrets/api_key', 'OPTUNE_API_KEY')
+        self.secret_key = self.read_key('/var/secrets/api_secret', 'OPTUNE_API_SECRET')
+        self.api_url = os.getenv('OPTUNE_API_URL')
+        self.config_file = os.getenv('OPTUNE_CONFIG', 'config.yaml')
         try:
             with open(self.config_file, 'r') as stream:
                 conf = yaml.safe_load(stream)['rancher']
                 self.api_url = conf.get('api_url', self.api_url)
                 self.access_key = conf.get('api_key', self.access_key)
-                self.secret_key = conf.get('secret_key', self.secret_key)
+                self.secret_key = conf.get('api_secret', self.secret_key)
                 self.project = conf.get('project')
                 self.stack = conf.get('stack')
                 self.defaults = conf.get('default', {})
@@ -169,7 +170,6 @@ class Config:
             raise ConfigError("cannot read configuration from {}:{}".format(config, e.strerror))
         except yaml.error.YAMLError as e:
             raise ConfigError("syntax error in {}: {}".format(config, str(e)))
-
 
     def read_key(self, filename, default_env=None):
         try:
