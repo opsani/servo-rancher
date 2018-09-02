@@ -206,7 +206,7 @@ class Config:
 if __name__ == "__main__":
     def pull_data_objects(data):
         hash = {}
-        for datum in r['data']:
+        for datum in data['data']:
             hash[datum['name']] = datum['id']
         return hash
 
@@ -215,6 +215,23 @@ if __name__ == "__main__":
         for capability in capabilities.keys():
             hash[capability] = data.get(capability, capabilities[capability])
         return hash
+
+    def handle_command(id, function, keys):
+        try:
+            r = function(id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
+
+        if id == None: # List names
+            return pull_data_objects(r)
+        elif len(keys) == 0:
+            return r
+        else:
+            hash = {}
+            for key in keys:
+                hash[key] = r.get(key)
+            return hash
 
     config = Config()
     client = Client(config)
@@ -228,72 +245,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.projects:
-        project_id = args.projects[0]
-        try:
-            r = client.projects(project_id)
-        except (Exception) as e:
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
-        if project_id == None: # List project names
-            r = pull_data_objects(r)
-        else:
-            hash = {}
-            for key in ['id', 'name', 'data']:
-                hash[key] = r.get(key)
-            r = hash
-
+        r = handle_command(args.projects[0], lambda id :client.projects(id), ['id', 'name', 'data'])
         client.print(r)
     elif args.services:
-        service_id = args.services[0]
-        try:
-            r = client.services(name=service_id)
-        except (Exception) as e:
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
-        if service_id == None: # List service names
-            r = pull_data_objects(r)
-        else:
-            hash = {}
-            for key in ['id', 'name', 'instanceIds']:
-                hash[key] = r.get(key)
-            r = hash
-
+        r = handle_command(args.services[0], lambda id :client.services(name=id), ['id', 'name', 'instanceIds'])
         client.print(r)
-
     elif args.stacks:
-        stack_id = args.stacks[0]
-        try:
-            r = client.stacks(name=stack_id)
-        except (Exception) as e:
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
-        if stack_id == None: # List service names
-            r = pull_data_objects(r)
-        else:
-            hash = {}
-            for key in ['id', 'name', 'serviceIds']:
-                hash[key] = r.get(key)
-            r = hash
-
+        r = handle_command(args.stacks[0], lambda id :client.stacks(name=id), ['id', 'name', 'serviceIds'])
         client.print(r)
-
     elif args.instances:
-        service_id = args.service
         instance_id = args.instances[0]
-        try:
-            r = client.instances(service_name=service_id, name=instance_id)
-        except (Exception) as e:
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
+        r = handle_command([args.service, instance_id], lambda ids :client.instances(service_name=ids[0], name=ids[1]), [])
         if instance_id == None: # List instance names
             r = pull_data_objects(r)
         else:
-            r = env_data(r['data'][0], client.capabilities(service_id))
-
+            r = env_data(r['data'][0], client.capabilities(args.service))
         client.print(r)
     else:
         parser.print_help()
