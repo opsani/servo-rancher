@@ -42,114 +42,26 @@ def memunits(s):
             return ( float(s[:-len(u)]) * m )
     return (float(s))
 
-def pull_data_objects(data):
-    hash = {}
-    for datum in r['data']:
-        hash[datum['name']] = datum['id']
-    return hash
-
-def env_data(data, capabilities):
-    hash = {}
-    for capability in capabilities.keys():
-        hash[capability] = data.get(capability, capabilities[capability])
-    return hash
-
 version="1.1"
 
 if __name__ == "__main__":
+    config = Config()
+    client = Client(config)
+
     parser = argparse.ArgumentParser(description='Adjust Rancher Stack Settings')
     parser.add_argument('stackname', nargs='?', help='Name of the stack to update. Pass a capability.json file to update that stack.', default=None)
     parser.add_argument('--version', help='Print the current version', action='store_true')
     parser.add_argument('--info', help='Print version and cancel capability in JSON.', action='store_true')
     parser.add_argument('--describe', nargs='?', help='Describe actions which can be performed on a stack.', action='append')
     parser.add_argument('--capabilities', nargs='?', help='List the possible capabilites of a given service.', action='append')
-    parser.add_argument('--projects', nargs='?', help='List projects with no args or the projects stacks with args.', action='append')
-    parser.add_argument('--stacks', nargs='?', help='List stacks with no args or the stacks services with args.', action='append')
-    parser.add_argument('--services', nargs='?', help='List services with no args or the services instances with args.', action='append')
-    parser.add_argument('--service', help='Used with instances to print the instances of a service.')
-    parser.add_argument('--instances', nargs='?', help='List services with no args or the services instances with args.', action='append')
 
     args = parser.parse_args()
-
-    config = Config()
-    client = Client(config)
-
-    print(args)
-
     if args.version:
         print(version)
     elif args.info:
         print(json.dumps({"version":version, "has_cancel":False}))
     elif args.capabilities:
         client.print(client.capabilities(args.capabilities[0]))
-    elif args.projects:
-        project_id = args.projects[0]
-        try:
-            r = client.projects(project_id)
-        except (Exception) as e:
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
-        if project_id == None: # List project names
-            r = pull_data_objects(r)
-        else:
-            hash = {}
-            for key in ['id', 'name', 'data']:
-                hash[key] = r.get(key)
-            r = hash
-
-        client.print(r)
-    elif args.services:
-        service_id = args.services[0]
-        try:
-            r = client.services(name=service_id)
-        except (Exception) as e:
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
-        if service_id == None: # List service names
-            r = pull_data_objects(r)
-        else:
-            hash = {}
-            for key in ['id', 'name', 'instanceIds']:
-                hash[key] = r.get(key)
-            r = hash
-
-        client.print(r)
-
-    elif args.stacks:
-        stack_id = args.stacks[0]
-        try:
-            r = client.stacks(name=stack_id)
-        except (Exception) as e:
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
-        if stack_id == None: # List service names
-            r = pull_data_objects(r)
-        else:
-            hash = {}
-            for key in ['id', 'name', 'serviceIds']:
-                hash[key] = r.get(key)
-            r = hash
-
-        client.print(r)
-
-    elif args.instances:
-        service_id = args.service
-        instance_id = args.instances[0]
-        try:
-            r = client.instances(service_name=service_id, name=instance_id)
-        except (Exception) as e:
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
-        if instance_id == None: # List instance names
-            r = pull_data_objects(r)
-        else:
-            r = env_data(r['data'][0], client.capabilities(service_id))
-
-        client.print(r)
     elif args.describe:
         stack_id = args.describe[0]
         try:

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 from dotenv import load_dotenv
-import requests
 from requests.auth import HTTPBasicAuth
-import sys, json, os
+import argparse
 import datetime
+import requests
+import sys, json, os
 import yaml
 
 load_dotenv()
@@ -203,37 +204,96 @@ class Config:
 
 
 if __name__ == "__main__":
+    def pull_data_objects(data):
+        hash = {}
+        for datum in r['data']:
+            hash[datum['name']] = datum['id']
+        return hash
+
+    def env_data(data, capabilities):
+        hash = {}
+        for capability in capabilities.keys():
+            hash[capability] = data.get(capability, capabilities[capability])
+        return hash
+
     config = Config()
-    # Pull possible parameters from the environment
     client = Client(config)
 
-    # This is an example for a single project
-    # it iterates over all services and just lists their IDs
-    client.print(client.projects())
-    project_id = client.projects()['data'][0]['id']
+    parser = argparse.ArgumentParser(description='Adjust Rancher Stack Settings')
+    parser.add_argument('--projects', nargs='?', help='List projects with no args or the projects stacks with args.', action='append')
+    parser.add_argument('--stacks', nargs='?', help='List stacks with no args or the stacks services with args.', action='append')
+    parser.add_argument('--services', nargs='?', help='List services with no args or the services instances with args.', action='append')
+    parser.add_argument('--service', help='Used with instances to print the instances of a service.')
+    parser.add_argument('--instances', nargs='?', help='List services with no args or the services instances with args.', action='append')
 
-    print('Services for ' + project_id)
-    for service in client.services(project_id)['data']:
-        print(' ' + service['id'])
+    args = parser.parse_args()
+    if args.projects:
+        project_id = args.projects[0]
+        try:
+            r = client.projects(project_id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
 
-    # These are they keys we try to update
-    body = {}
-    body['description'] = str(datetime.datetime.utcnow())
-    body['metadata'] = {}
-    body['scalePolicy'] = {}
-    body['scalePolicy']['min'] = 0.1
-    body['scalePolicy']['max'] = 0.8
-    #body['metadata']['Time'] = str(datetime.datetime.utcnow())
+        if project_id == None: # List project names
+            r = pull_data_objects(r)
+        else:
+            hash = {}
+            for key in ['id', 'name', 'data']:
+                hash[key] = r.get(key)
+            r = hash
 
-    service_id = client.services(project_id)['data'][0]['id']
+        client.print(r)
+    elif args.services:
+        service_id = args.services[0]
+        try:
+            r = client.services(name=service_id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
 
-    # Then we try to update the service
-    print('Updating service' + service_id + ' with ' + str(body))
-    response = client.services(project_id, service_id, body=body)
+        if service_id == None: # List service names
+            r = pull_data_objects(r)
+        else:
+            hash = {}
+            for key in ['id', 'name', 'instanceIds']:
+                hash[key] = r.get(key)
+            r = hash
 
-    # Print out only the keys we attempted to update
-    for key in body.keys():
-        print('  ' + key + ': ' + str(response[key]))
+        client.print(r)
 
-    # Perform an action. This one seems to 422.
-    client.print(client.services(project_id, service_id, action='finishupgrade'))
+    elif args.stacks:
+        stack_id = args.stacks[0]
+        try:
+            r = client.stacks(name=stack_id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
+
+        if stack_id == None: # List service names
+            r = pull_data_objects(r)
+        else:
+            hash = {}
+            for key in ['id', 'name', 'serviceIds']:
+                hash[key] = r.get(key)
+            r = hash
+
+        client.print(r)
+
+    elif args.instances:
+        service_id = args.service
+        instance_id = args.instances[0]
+        try:
+            r = client.instances(service_name=service_id, name=instance_id)
+        except (Exception) as e:
+            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
+            sys.exit(3)
+
+        if instance_id == None: # List instance names
+            r = pull_data_objects(r)
+        else:
+            r = env_data(r['data'][0], client.capabilities(service_id))
+
+        client.print(r)
+    else:
+        parser.print_help()
