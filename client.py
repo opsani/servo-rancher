@@ -121,9 +121,12 @@ class Client:
         self.print({ 'message': 'cancelling operation on service {}'.format(service_id), 'state': 'Cancelling' })
         self.cancel_upgrade(service_id)
 
+    # We've detected we need to cancel. Gracefully wait for the cancel to complete, then rollback.
     def cancel_upgrade(self, service_id):
         service = self.services(name=service_id)
         state = service.get('state')
+
+        # don't cancel again if we're already cancelling
         if state != 'canceled-upgrade':
             self.services(name=service_id, action='cancelupgrade')
 
@@ -138,27 +141,27 @@ class Client:
         self.services(name=service_id, action='rollback')
         exit(1)
 
-
+    # Wait until the service is fully upgraded
     def wait_for_upgrade(self, service_name):
-        state = 'upgrade'
-        idx = 0
         signal.signal(signal.SIGUSR1, self.handle_signal)
         signal.signal(signal.SIGINT, self.handle_signal)
 
+        idx = 0
+        state = 'upgrade'
         while state != 'upgraded' and state != 'active':
             service = self.services(name=service_name)
             state = service.get('state')
             message = "Transition: {}; Health: {}".format(
                 service.get('transitioningMessage', ''),
                 service.get('healthState')),
-            notice = {
+            self.print({
                 "progress": idx*5,
                 "message": message,
                 "msg_index": idx,
-                "stage": state}
-            self.print(notice)
+                "stage": state})
             idx += 1
 
+            # in case the service was in the middle of a cancellation when we started
             if state == 'canceled-upgrade':
                 self.cancel_upgrade(service_name)
 
@@ -171,9 +174,12 @@ class Client:
             body = self.prepare_service_upgrade(name, body)
             action = 'upgrade'
             service = self.services(name=name)
+            # only try to upgrade if the service is active
             if service.get('state') == 'active':
                 self.render(uri, action, body)
             self.wait_for_upgrade(name)
+
+            # this commits
             return self.services(name=name, action='finishupgrade')
         return self.render(uri, action)
 
@@ -254,22 +260,24 @@ class Config:
     def __init__(self):
         self.access_key = self.read_key('/var/secrets/api_key', 'OPTUNE_API_KEY')
         self.secret_key = self.read_key('/var/secrets/api_secret', 'OPTUNE_API_SECRET')
-        self.api_url = os.getenv('OPTUNE_API_URL')
-        self.project = os.getenv('OPTUNE_PROJECT')
-        self.config_file = os.getenv('OPTUNE_CONFIG', 'config.yaml')
-        conf = self.read_config(self.config_file)
-        self.api_url = conf.get('api_url', self.api_url)
+
+        conf = self.read_config(os.getenv('OPTUNE_CONFIG', 'config.yaml'))
         self.access_key = conf.get('api_key', self.access_key)
         self.secret_key = conf.get('api_secret', self.secret_key)
-        self.project = conf.get('project', self.project)
+        self.api_url = conf.get('api_url', os.getenv('OPTUNE_API_URL'))
+        self.project = conf.get('project', os.getenv('OPTUNE_PROJECT'))
         self.stack = conf.get('stack')
         self.services = conf.get('service', {})
-        self.services_defaults = self.services.get('defaults', { 'environment': None, 'cpu': None, 'memory': None, 'scale': None } )
+        self.services_defaults = self.services.get('defaults', {
+            'environment': None,
+            'cpu': None,
+            'memory': None,
+            'scale': None } )
         self.excluded = conf.get('excluded', [])
 
     def read_config(self, filename):
         try:
-            with open(self.config_file, 'r') as stream:
+            with open(filename, 'r') as stream:
                 return yaml.safe_load(stream)['rancher']
         except IOError as e:
             if e.errno == errno.ENOENT:
@@ -285,7 +293,7 @@ class Config:
         except:
             return os.getenv(default_env)
 
-
+# Basic CLI for client.py
 if __name__ == "__main__":
     def pull_data_objects(data):
         hash = {}
