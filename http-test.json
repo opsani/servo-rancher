@@ -1,40 +1,30 @@
 {
     "back": {
-        "compose": null,
-        "launchConfig": {
-            "environment": {
-                "MEMORY": {
-                    "max": 16384,
-                    "min": 512,
-                    "step": 64,
-                    "template": "MEMORY: '{{parameter}}M'"
-                }
-            },
-            "memory": {
+        "environment": {
+            "MEMORY": {
                 "max": 16384,
                 "min": 512,
-                "step": 64
-            },
-            "vcpu": {
-                "max": 10,
-                "min": 1
+                "step": 64,
+                "template": "MEMORY: '{{parameter}}M'"
             }
         },
-        "scale": 2,
-        "scalePolicy": null
+        "memory": {
+            "max": 16384,
+            "min": 512,
+            "step": 64
+        },
+        "vcpu": {
+            "max": 10,
+            "min": 1
+        }
     },
     "front": {
-        "compose": null,
-        "launchConfig": {
-            "environment": {
-                "GC": "-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}",
-                "MEMORY": 512
-            },
-            "memoryMb": 512,
-            "vcpu": 4
+        "environment": {
+            "GC": "-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}",
+            "MEMORY": 512
         },
-        "scale": 2,
-        "scalePolicy": null
+        "memoryMb": 512,
+        "vcpu": 4
     },
     "http-slb": {}
 }
