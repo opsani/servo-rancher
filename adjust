@@ -42,7 +42,7 @@ def memunits(s):
             return ( float(s[:-len(u)]) * m )
     return (float(s))
 
-version="1.1"
+version="0.1"
 
 if __name__ == "__main__":
     config = Config()
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     if args.version:
         print(version)
     elif args.info:
-        print(json.dumps({"version":version, "has_cancel":False}))
+        print(json.dumps({"version":version, "has_cancel":True}))
     elif args.capabilities:
         client.print(client.capabilities(args.capabilities[0]))
     elif args.describe:
@@ -75,6 +75,10 @@ if __name__ == "__main__":
         client.print(r)
     elif args.action:
         stack_id = args.action[0]
+        # * cancelrollback
+        # * cancelupgrade
+        # * finishupgrade
+        # * rollback
         action = args.action[1]
         try:
             r = client.services(name=stack_id, action=action)

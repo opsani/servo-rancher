@@ -6,36 +6,23 @@ rancher:
   # api_secret: "HIJKLMNO"
   service:
     defaults:
-      scale:
-        min: 1
-      scalePolicy:
+      environment:
+        MEMORY:
+          min: 512
+          max: 16384
+          step: 64
+          template: "MEMORY: '{{parameter}}M'"
+      memoryMb:
+          min: 512
+          max: 16384
+          step: 64
+      vcpu:
         min: 1
         max: 10
-        increment: 1
-      launchConfig:
-        environment:
-          MEMORY:
-            min: 512
-            max: 16384
-            step: 64
-            template: "MEMORY: '{{parameter}}M'"
-        memoryMb:
-            min: 512
-            max: 16384
-            step: 64
-        vcpu:
-          min: 1
-          max: 10
-      compose:
-        cpu:
-          min: 500
     front:
-      scale:
-        max: 5
-      launchConfig:
-        environment:
-          GC:
-            template: "GC: '-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}'"
+      environment:
+        GC:
+          template: "GC: '-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}'"
     http-slb:
       exclude: true
 

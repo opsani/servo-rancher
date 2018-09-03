@@ -106,7 +106,7 @@ class Client:
         if body and body.get('launchConfig'):
             service = self.services(name=name)
             launchConfig = service.get('launchConfig', {})
-            launchConfig = self.merge(launchConfig, body.pop('launchConfig'))
+            launchConfig = self.merge(launchConfig, body)
             strategy = { 'inServiceStrategy': {
                 'type': 'inServiceUpgradeStrategy',
                 'batchSize': 1,
@@ -116,7 +116,8 @@ class Client:
                 'secondaryLaunchConfigs': [] } }
             response = {}
             response['upgrade'] = self.render(uri, 'upgrade', strategy)
-            response['finish'] = self.render(uri, 'finishupgrade')
+            # TODO: Need pooling of the service here before we finish
+            #response['finish'] = self.render(uri, 'finishupgrade')
             return response
         else:
             return self.render(uri, action, body)
@@ -133,7 +134,7 @@ class Client:
         uri = self.scope_uri(self.services_uri(project_name, service_name) + '/instances', name)
         return self.render(uri, action, body)
 
-    # Describes what parameters can be tweaked for the given stack
+    # Describes what launchConfig parameters can be tweaked for the given stack
     def describe(self, stack_name=None):
         if stack_name == None:
             stack_name = self.config.stack
@@ -145,14 +146,7 @@ class Client:
             response[svc_name] = {}
             capabilities = self.capabilities(svc_name)
             for capability in capabilities:
-                # This makes it a bit less generic, but easier to reason about for now
-                if capability == 'launchConfig':
-                    response[svc_name]['launchConfig'] = {}
-                    launchconfig = capabilities.get('launchConfig', {})
-                    for key in launchconfig:
-                        response[svc_name]['launchConfig'][key] = launchconfig.get(key)
-                else:
-                    response[svc_name][capability] = service.get(capability)
+                response[svc_name][capability] = capabilities.get(capability)
         return response
 
     # Render is the workhorse. It takes a URI and optional action or body

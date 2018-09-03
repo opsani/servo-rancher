@@ -1,7 +1,7 @@
 ## List all projects
 
 ```
-$ ./adjust --projects
+$ ./client.py --projects
 http://rancher.kumulus.co:8080/v1/projects
 {
     "Default": "1a5"
@@ -11,7 +11,7 @@ http://rancher.kumulus.co:8080/v1/projects
 ## List project information
 
 ```
-$ ./adjust --projects 1a5
+$ ./client.py --projects 1a5
 http://rancher.kumulus.co:8080/v1/projects
 http://rancher.kumulus.co:8080/v1/projects/1a5
 {
@@ -44,7 +44,7 @@ http://rancher.kumulus.co:8080/v1/projects/1a5
 ## List all services for the configured project
 
 ```
-$ ./adjust --services
+$ ./client.py --services
 http://rancher.kumulus.co:8080/v1/projects
 http://rancher.kumulus.co:8080/v1/projects/1a5/services
 {
@@ -64,7 +64,7 @@ http://rancher.kumulus.co:8080/v1/projects/1a5/services
 ## List all instances for a given service
 
 ```
-$ ./adjust --services front
+$ ./client.py --services front
 http://rancher.kumulus.co:8080/v1/projects
 http://rancher.kumulus.co:8080/v1/projects/1a5/services
 http://rancher.kumulus.co:8080/v1/projects/1a5/services/1s8
@@ -80,7 +80,7 @@ http://rancher.kumulus.co:8080/v1/projects/1a5/services/1s8
 ## List instance information
 
 ```
-$ ./adjust --instances front 1i30
+$ ./client.py --instances front 1i30
 http://rancher.kumulus.co:8080/v1/projects
 http://rancher.kumulus.co:8080/v1/projects/1a5/services
 http://rancher.kumulus.co:8080/v1/projects/1a5/services/1s8/instances/front
@@ -99,7 +99,7 @@ http://rancher.kumulus.co:8080/v1/projects/1a5/services/1s8/instances/front
 ## List default capabilities
 
 ```
-$ ./adjust --capabilities
+$ ./client.py --capabilities
 {
     "compose": {
         "cpu": {
@@ -120,7 +120,7 @@ $ ./adjust --capabilities
 ## List capabilities for a service
 
 ```
-$ ./adjust --capabilities front
+$ ./client.py --capabilities front
 {
     "compose": {
         "cpu": {
@@ -144,6 +144,6 @@ $ ./adjust --capabilities front
 ## List capabilities for a service which is excluded
 
 ```
-$ ./adjust --capabilities http-slb
+$ ./client.py --capabilities http-slb
 {}
 ```
