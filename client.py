@@ -5,7 +5,9 @@ from requests.auth import HTTPBasicAuth
 import argparse
 import datetime
 import requests
+import signal
 import sys, json, os
+import time
 import yaml
 
 load_dotenv()
@@ -100,27 +102,79 @@ class Client:
     def services_uri(self, project_name=None, name=None):
         return self.scope_uri(self.projects_uri(project_name, True) + '/services', self.service_id(name))
 
-    # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/service/
-    def services(self, project_name=None, name=None, action=None, body=None):
-        uri = self.services_uri(project_name, name)
-        if body and body.get('launchConfig'):
-            service = self.services(name=name)
-            launchConfig = service.get('launchConfig', {})
-            launchConfig = self.merge(launchConfig, body)
-            strategy = { 'inServiceStrategy': {
+    def prepare_service_upgrade(self, service_name, body):
+        service = self.services(name=service_name)
+        launchConfig = service.get('launchConfig', {})
+        launchConfig = self.merge(launchConfig, body)
+        return {'inServiceStrategy': {
                 'type': 'inServiceUpgradeStrategy',
                 'batchSize': 1,
                 'intervalMillis': 2000,
                 'startFirst': False,
                 'launchConfig': launchConfig,
                 'secondaryLaunchConfigs': [] } }
-            response = {}
-            response['upgrade'] = self.render(uri, 'upgrade', strategy)
-            # TODO: Need pooling of the service here before we finish
-            #response['finish'] = self.render(uri, 'finishupgrade')
-            return response
-        else:
-            return self.render(uri, action, body)
+
+    def handle_signal(self, signum, frame):
+        service_locals = frame.f_locals.get('service')
+        service_id = service_locals.get('id')
+        self.print({ 'message': 'cancelling operation on service {}'.format(service_id), 'state': 'Cancelling' })
+        self.cancel_upgrade(service_id)
+
+    def cancel_upgrade(self, service_id):
+        service = self.services(name=service_id)
+        state = service.get('state')
+        if state != 'canceled-upgrade':
+            self.services(name=service_id, action='cancelupgrade')
+
+        while state != 'canceled-upgrade' and state != 'active':
+            service = self.services(name=service_id)
+            state = service.get('state')
+            self.print({
+                'progress': 0,
+                'message': 'cancelling operation on service {}'.format(service_id),
+                'state': state })
+
+        self.services(name=service_id, action='rollback')
+        exit(1)
+
+
+    def wait_for_upgrade(self, service_name):
+        state = 'upgrade'
+        idx = 0
+        signal.signal(signal.SIGUSR1, self.handle_signal)
+        signal.signal(signal.SIGINT, self.handle_signal)
+
+        while state != 'upgraded' and state != 'active':
+            service = self.services(name=service_name)
+            state = service.get('state')
+            message = "Transition: {}; Health: {}".format(
+                service.get('transitioningMessage', ''),
+                service.get('healthState')),
+            notice = {
+                "progress": idx*5,
+                "message": message,
+                "msg_index": idx,
+                "stage": state}
+            self.print(notice)
+            idx += 1
+
+            if state == 'canceled-upgrade':
+                self.cancel_upgrade(service_name)
+
+            time.sleep(2)
+
+    # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/service/
+    def services(self, project_name=None, name=None, action=None, body=None):
+        uri = self.services_uri(project_name, name)
+        if body:
+            body = self.prepare_service_upgrade(name, body)
+            action = 'upgrade'
+            service = self.services(name=name)
+            if service.get('state') == 'active':
+                self.render(uri, action, body)
+            self.wait_for_upgrade(name)
+            return self.services(name=name, action='finishupgrade')
+        return self.render(uri, action)
 
     def stacks_uri(self, project_name=None, name=None):
         return self.scope_uri(self.projects_uri(project_name, True) + '/stacks', self.stack_id(name))
@@ -244,6 +298,7 @@ if __name__ == "__main__":
         try:
             r = function(id)
         except (Exception) as e:
+            print(e, file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
 

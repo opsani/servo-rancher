@@ -3,6 +3,7 @@ import sys
 import os
 import errno
 import subprocess
+import traceback
 import time
 import json
 import argparse
@@ -68,7 +69,7 @@ if __name__ == "__main__":
         try:
             r = client.describe(stack_id)
         except (Exception) as e:
-            print(e, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
 
@@ -83,7 +84,7 @@ if __name__ == "__main__":
         try:
             r = client.services(name=stack_id, action=action)
         except (Exception) as e:
-            print(e, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
 
@@ -93,9 +94,9 @@ if __name__ == "__main__":
 
         data = json.load(sys.stdin)
         try:
-            client.services(name=stackname, body=data[stackname])
+            client.services(name=stackname, action='upgrade', body=data[stackname])
         except Exception as e:
-            print(e, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
     else:
