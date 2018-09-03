@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
 import argparse
 import datetime
+import errno
 import requests
 import signal
 import sys, json, os
@@ -254,21 +255,25 @@ class Config:
         self.access_key = self.read_key('/var/secrets/api_key', 'OPTUNE_API_KEY')
         self.secret_key = self.read_key('/var/secrets/api_secret', 'OPTUNE_API_SECRET')
         self.api_url = os.getenv('OPTUNE_API_URL')
+        self.project = os.getenv('OPTUNE_PROJECT')
         self.config_file = os.getenv('OPTUNE_CONFIG', 'config.yaml')
+        conf = self.read_config(self.config_file)
+        self.api_url = conf.get('api_url', self.api_url)
+        self.access_key = conf.get('api_key', self.access_key)
+        self.secret_key = conf.get('api_secret', self.secret_key)
+        self.project = conf.get('project', self.project)
+        self.stack = conf.get('stack')
+        self.services = conf.get('service', {})
+        self.services_defaults = self.services.get('defaults', { 'environment': None, 'cpu': None, 'memory': None, 'scale': None } )
+        self.excluded = conf.get('excluded', [])
+
+    def read_config(self, filename):
         try:
             with open(self.config_file, 'r') as stream:
-                conf = yaml.safe_load(stream)['rancher']
-                self.api_url = conf.get('api_url', self.api_url)
-                self.access_key = conf.get('api_key', self.access_key)
-                self.secret_key = conf.get('api_secret', self.secret_key)
-                self.project = conf.get('project')
-                self.stack = conf.get('stack')
-                self.services = conf.get('service', {})
-                self.services_defaults = self.services.get('defaults', {})
-                self.excluded = conf.get('excluded', [])
+                return yaml.safe_load(stream)['rancher']
         except IOError as e:
             if e.errno == errno.ENOENT:
-                return {} # only if 'file not found'
+                return {}
             raise ConfigError("cannot read configuration from {}:{}".format(config, e.strerror))
         except yaml.error.YAMLError as e:
             raise ConfigError("syntax error in {}: {}".format(config, str(e)))
