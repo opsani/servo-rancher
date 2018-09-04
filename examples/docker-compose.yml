@@ -1,0 +1,24 @@
+version: '2'
+services:
+  back:
+    image: opsani/co-http
+    stdin_open: true
+    tty: true
+    labels:
+      io.rancher.container.pull_image: always
+  front:
+    image: opsani/co-http
+    environment:
+      MEMORY: 2048M
+    stdin_open: true
+    tty: true
+    labels:
+      io.rancher.container.pull_image: always
+  http-slb:
+    image: rancher/lb-service-haproxy:v0.9.3
+    ports:
+    - 8090:8090/tcp
+    labels:
+      io.rancher.container.agent.role: environmentAdmin,agent
+      io.rancher.container.agent_service.drain_provider: 'true'
+      io.rancher.container.create_agent: 'true'
