@@ -1,3 +1,21 @@
+## Configuration
+
+You need to supply the configuration to adjust to get going. It doesn't need a config.yaml but it
+does need environment settings. You can either place these into the environment directly, or supply
+an file called `.env` in the root directory with adjust.
+
+.env
+```
+OPTUNE_API_URL='http://rancher.api/v2-beta'
+OPTUNE_API_KEY=myrancherapikey
+OPTUNE_API_SECRET=myranchersecretkey
+OPTUNE_PROJECT=Default
+OPTUNE_CONFIG=an *optional* path to a config.yaml file
+```
+There is also a `sample_config.yaml` file which you can tweak as needed. If provided, the yaml file
+takes precidence over the environment variables.
+
+
 ## List version
 
 ```
