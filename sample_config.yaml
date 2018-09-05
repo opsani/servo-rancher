@@ -2,15 +2,28 @@
 # each service. It is not a required file, and by default, the servo will be allowed to pass
 # any values it wants for environment, memory, cpu, and scale
 rancher:
-  stack: "http-test"                                # Stack to operate on, not required
-  project: "Default"                                # Override for OPTUNE_PROJECT env
-  api_url: "http://rancher.kumulus.co:8080/v2-beta" # Override for OPTUNE_URL must include /v2-beta
-  # api_key: "ABCDEFG"                              # Override for OPTUNE_API_KEY
-  # api_secret: "HIJKLMNO"                          # Override for OPTUNE_API_SECRET
+  # stack: stack to operate on, not required
+  # project: "Environment" in the UI, on which to find the stack(s) to operate on
+  # api_url: In the event that the servo is not in the Rancher environment
+  # api_key: as an alternative to passing the API key
+  # api_secret: as an alternative to passing the API
+  #
+  # These initial parameters can also be defined as environment variables
+  # OPTUNE_STACK
+  # OPTUNE_PROJECT
+  # OPTUNE_API_URL
+  # OPTUNE_API_KEY
+  # OPTUNE_API_SECRET
+
+  stack: "http-test"
+  project: "Default"
+  api_url: "http://rancher.kumulus.co:8080/v2-beta"
+  # api_key: "ABCDEFG"
+  # api_secret: "HIJKLMNO"
 
   # We currently only support Rancher services
   service:
-    # Specific overrides for the 'front' service
+    # overrides for the 'front' service
     front:
     # specific envrionment parameters to add
     # If this parameter isn't already in the stack it is assumed to take
@@ -21,7 +34,6 @@ rancher:
       environment:
         MEMORY:
           value: 2048M
-    # Specific overrides for the 'back' service
     back:
       environment:
         MEMORY:
