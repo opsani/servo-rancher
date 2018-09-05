@@ -25,8 +25,9 @@ rancher:
     # Specific overrides for the 'front' service
     front:
       environment:
-        GC:
-          template: "GC: '-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}'"
+        GC:           # Servo only passes the value, and the adjust replaces that value with the
+          min: 1      # first integer it sees'-XX:+UseParallelGC -XX:ParallelGCThreads=1'
+          max: 10
     # Specific overrides for the 'back' service
     back:
       environment:
