@@ -22,7 +22,7 @@ rancher:
   # api_secret: "HIJKLMNO"
 
   # We currently only support Rancher services
-  service:
+  services:
     # overrides for the 'front' service
     front:
     # specific envrionment parameters to add
