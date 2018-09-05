@@ -1,21 +1,17 @@
 {
     "back": {
-        "cpu": 1,
-        "environment": { },
-        "memory": "1024M",
-        "replicas": 2
+        "cpu": 300,
+        "memory": "1024",
+        "scale": 2
     },
     "front": {
-        "cpu": 1,
+        "cpu": 500,
         "environment": {
-            "value": {
-                "GC": "-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}",
-                "MEMORY": "2048M"
+            "MEMORY": {
+                "value": "2048"
             }
         },
-        "memory": "4096M",
-        "replicas": 2
-    },
-    "http-slb": {
+        "memory": "4096",
+        "scale": 2
     }
 }

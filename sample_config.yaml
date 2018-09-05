@@ -10,36 +10,22 @@ rancher:
 
   # We currently only support Rancher services
   service:
-    # This defines default values for all services
-    defaults:
-      memory:         # Defines a range for what the memory value can be. This is in Mb
-          min: 512
-          max: 16384
-          step: 64
-      cpu:            # Defines the number of  cpu cores
-        min: 0.25
-        max: 10
-      scale:          # Defines how many instances of the service
-        min: 1
-        max: 10
     # Specific overrides for the 'front' service
     front:
       environment:
-        GC:
-          template: "GC: '-XX:+UsePArallelGC -XX:ParallelGCThreads={{parameter}}'"
+        MEMORY:
+          template: "{{parameter}}M"
     # Specific overrides for the 'back' service
     back:
       environment:
         MEMORY:
-          min: 512
-          max: 16384
-          step: 64
+          value: 3072
       scale:
-        min: 2
-        max: 20
+        value: 2
+      compute:
+        value: 500
+      memory:
+        value: 4096
     # The 'http-slb' service is excluded
     http-slb:
       exclude: true
-  # You may also exclude services this way
-  excluded:
-    - http-slb
