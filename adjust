@@ -47,15 +47,10 @@ def memunits(s):
 def map_rancher_to_servo(dict):
     for service in dict.keys():
         service_settings = dict[service]
-        service_settings['cpu'] = service_settings.pop('cpuCount')
-        service_settings['replicas'] = service_settings.pop('count')
+        service_settings['cpu'] = service_settings.pop('cpuCount', None)
+        service_settings['replicas'] = service_settings.pop('count', None)
+        service_settings['memory'] = service_settings.pop('memoryMb', None)
         # environment is the same
-        # memory is the same, but we need to support scale
-        memory = service_settings['memory']
-        if memory and type(memory) == str:
-            service_settings['memory'] = str(int(memory) / 1000**2) + 'M'
-        elif memory and type(memory) == dict:
-            service_settings['memory']['value'] = str(int(memory.get('value', 0)) / 1000**2) + 'M'
         dict[service] = service_settings
     return dict
 
@@ -65,8 +60,7 @@ def map_servo_to_rancher(dict):
         service_settings = dict[service]
         service_settings['cpuCount'] = service_settings.pop('cpu', None)
         service_settings['count'] = service_settings.pop('replicas', None)
-        if service_settings.get('memory'):
-            service_settings['memory'] = memunits(service_settings['memory'])
+        service_settings['memoryMb'] = service_settings.pop('memory', None)
         dict[service] = service_settings
     return dict
 
