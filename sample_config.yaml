@@ -12,14 +12,20 @@ rancher:
   service:
     # Specific overrides for the 'front' service
     front:
+    # specific envrionment parameters to add
+    # If this parameter isn't already in the stack it is assumed to take
+    # a wholy numeric parameter (e.g. 1024) as a value.  If the enviornment
+    # variable already exists, then the first number will be extracted for
+    # the --describe function, and the number will be replaced in the parameter
+    # so an environment variable of MEMORY=1024M would become MEMORY=2048M
       environment:
         MEMORY:
-          template: "{{parameter}}M"
+          value: 2048M
     # Specific overrides for the 'back' service
     back:
       environment:
         MEMORY:
-          value: 3072
+          value: 3072M
       scale:
         value: 2
       compute:
