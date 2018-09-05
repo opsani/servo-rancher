@@ -43,6 +43,33 @@ def memunits(s):
             return ( float(s[:-len(u)]) * m )
     return (float(s))
 
+# Maps rancher keys to keys which servo understands
+def map_rancher_to_servo(dict):
+    for service in dict.keys():
+        service_settings = dict[service]
+        service_settings['cpu'] = service_settings.pop('cpuCount')
+        service_settings['replicas'] = service_settings.pop('count')
+        # environment is the same
+        # memory is the same, but we need to support scale
+        memory = service_settings['memory']
+        if memory and type(memory) == str:
+            service_settings['memory'] = str(int(memory) / 1000**2) + 'M'
+        elif memory and type(memory) == dict:
+            service_settings['memory']['value'] = str(int(memory.get('value', 0)) / 1000**2) + 'M'
+        dict[service] = service_settings
+    return dict
+
+# Maps servo keys to keys which rancher understands
+def map_servo_to_rancher(dict):
+    for service in dict.keys():
+        service_settings = dict[service]
+        service_settings['cpuCount'] = service_settings.pop('cpu', None)
+        service_settings['count'] = service_settings.pop('replicas', None)
+        if service_settings.get('memory'):
+            service_settings['memory'] = memunits(service_settings['memory'])
+        dict[service] = service_settings
+    return dict
+
 version="0.1"
 
 if __name__ == "__main__":
@@ -68,6 +95,7 @@ if __name__ == "__main__":
         stack_id = args.describe[0]
         try:
             r = client.describe(stack_id)
+            r = map_rancher_to_servo(r)
         except (Exception) as e:
             traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
@@ -93,6 +121,8 @@ if __name__ == "__main__":
         stackname = args.stackname
 
         data = json.load(sys.stdin)
+        data = map_servo_to_rancher(data)
+        client.print(data)
         try:
             client.services(name=stackname, action='upgrade', body=data[stackname])
         except Exception as e:

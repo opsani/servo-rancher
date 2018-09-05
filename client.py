@@ -203,11 +203,15 @@ class Client:
         stack = self.stacks(name=stack_name)
         for service_id in stack.get('serviceIds'):
             service = self.services(name=service_id)
+            launchConfig = service.get('launchConfig', {})
             svc_name = service.get('name')
             response[svc_name] = {}
             capabilities = self.capabilities(svc_name)
             for capability in capabilities:
-                response[svc_name][capability] = capabilities.get(capability)
+                response[svc_name][capability] = capabilities.get(capability, {})
+                if response[svc_name][capability] == None:
+                    response[svc_name][capability] = {}
+                response[svc_name][capability]['value'] = launchConfig.get(capability)
         return response
 
     # Render is the workhorse. It takes a URI and optional action or body
@@ -270,9 +274,9 @@ class Config:
         self.services = conf.get('service', {})
         self.services_defaults = self.services.get('defaults', {
             'environment': None,
-            'cpu': None,
+            'cpuCount': None,
             'memory': None,
-            'scale': None } )
+            'count': None } )
         self.excluded = conf.get('excluded', [])
 
     def read_config(self, filename):
