@@ -2,7 +2,7 @@
     "back": {
         "cpu": 1,
         "environment": { },
-        "memory": 1024,
+        "memory": 1,
         "replicas": 2
     },
     "front": {
@@ -10,10 +10,10 @@
         "environment": {
             "value": {
                 "GC": 2,
-                "MEMORY": 2048
+                "MEMORY": 2
             }
         },
-        "memory": 4096,
+        "memory": 4,
         "replicas": 2
     },
     "http-slb": {

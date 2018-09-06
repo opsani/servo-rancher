@@ -2,45 +2,38 @@
 # each service. It is not a required file, and by default, the servo will be allowed to pass
 # any values it wants for environment, memory, cpu, and scale
 rancher:
-  stack: "http-test"                                # Stack to operate on, not required
+  stack: "http-test"                                # Stack on which to operate, not required
   project: "Default"                                # Override for OPTUNE_PROJECT env
-  api_url: "http://rancher.kumulus.co:8080/v2-beta" # Override for OPTUNE_URL must include /v2-beta
+  api_url: "http://rancher.kumulus.co:8080/v2-beta" # Override for OPTUNE_API_URL must include /v2-beta
   # api_key: "ABCDEFG"                              # Override for OPTUNE_API_KEY
   # api_secret: "HIJKLMNO"                          # Override for OPTUNE_API_SECRET
 
-  # We currently only support Rancher services
-  service:
-    # This defines default values for all services
-    defaults:
-      memory:         # Defines a range for what the memory value can be. This is in Mb
-          min: 512
-          max: 16384
-          step: 64
-      cpu:            # Defines the number of  cpu cores
+  service:                                          # We currently only support Rancher services
+    front:                                          # Specific overrides for the 'front' service
+      cpu:                                          # Defines the number of cpu cores
         min: 0.25
         max: 10
-      scale:          # Defines how many instances of the service
+      memory:                                       # Defines memory reservation size range
+          min: 0.5
+          max: 16
+          step: 0.5
+          units: G                                  # Use Gb as the configuration unit
+      environment:
+        GC:                                         # adjust replaces that value with the
+          min: 1                                    # first integer it sees 'FOO 1 BAR 2'
+          max: 10                                   # would replace the 1 as regex finds it first
+      replicas:                                     # number of instances for the service
         min: 1
         max: 10
-    # Specific overrides for the 'front' service
-    front:
-      environment:
-        GC:           # Servo only passes the value, and the adjust replaces that value with the
-          min: 1      # first integer it sees'-XX:+UseParallelGC -XX:ParallelGCThreads=1'
-          max: 10
-    # Specific overrides for the 'back' service
-    back:
+    back:                                           # Specific overrides for the 'back' service
       environment:
         MEMORY:
           min: 512
           max: 16384
           step: 64
-      scale:
+          units: Mi                                 # Use megabytes as the configuration unit
+      replicas:
         min: 2
         max: 20
-    # The 'http-slb' service is excluded
-    http-slb:
+    http-slb:                                       # The 'http-slb' service is excluded
       exclude: true
-  # You may also exclude services this way
-  excluded:
-    - http-slb

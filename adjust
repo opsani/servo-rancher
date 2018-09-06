@@ -75,36 +75,17 @@ if __name__ == "__main__":
     parser.add_argument('--version', help='Print the current version', action='store_true')
     parser.add_argument('--info', help='Print version and capabilities in JSON.', action='store_true')
     parser.add_argument('--describe', nargs='?', help='Describe actions which can be performed on a stack.', action='append')
-    parser.add_argument('--action', nargs=2, help='Perform a service action')
-    parser.add_argument('--capabilities', nargs='?', help='List the possible capabilites of a given service.', action='append')
 
     args = parser.parse_args()
     if args.version:
         print(version)
     elif args.info:
         print(json.dumps({"version":version, "has_cancel":True}))
-    elif args.capabilities:
-        client.print(client.capabilities(args.capabilities[0]))
     elif args.describe:
         stack_id = args.describe[0]
         try:
             r = client.describe(stack_id)
             r = map_rancher_to_servo(r)
-        except (Exception) as e:
-            traceback.print_exc(file=sys.stderr)
-            print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
-            sys.exit(3)
-
-        client.print(r)
-    elif args.action:
-        stack_id = args.action[0]
-        # * cancelrollback
-        # * cancelupgrade
-        # * finishupgrade
-        # * rollback
-        action = args.action[1]
-        try:
-            r = client.services(name=stack_id, action=action)
         except (Exception) as e:
             traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))

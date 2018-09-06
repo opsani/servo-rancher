@@ -58,7 +58,7 @@ class Client:
         merged = self.merge(
             self.config.services_defaults.copy(),
             self.config.services.get(service_name, {}))
-        if merged.get('exclude', None) != None or service_name in self.config.excluded:
+        if merged.get('exclude', None) != None:
             return {}
         return merged
 
@@ -272,12 +272,8 @@ class Config:
         self.project = conf.get('project', os.getenv('OPTUNE_PROJECT'))
         self.stack = conf.get('stack')
         self.services = conf.get('service', {})
-        self.services_defaults = self.services.get('defaults', {
-            'environment': None,
-            'cpuCount': None,
-            'memory': None,
-            'count': None } )
-        self.excluded = conf.get('excluded', [])
+        self.services_defaults = { 'environment': None, 'cpuCount': None,
+                                   'memory':      None, 'count':    None }
 
     def read_config(self, filename):
         try:
