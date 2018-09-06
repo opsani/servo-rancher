@@ -271,7 +271,7 @@ class Config:
         self.api_url = conf.get('api_url', os.getenv('OPTUNE_API_URL'))
         self.project = conf.get('project', os.getenv('OPTUNE_PROJECT'))
         self.stack = conf.get('stack')
-        self.services = conf.get('service', {})
+        self.services = conf.get('services', {})
         self.services_defaults = { 'environment': None, 'cpuCount': None,
                                    'memory':      None, 'count':    None }
 

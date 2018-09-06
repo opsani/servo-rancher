@@ -2,38 +2,48 @@
 # each service. It is not a required file, and by default, the servo will be allowed to pass
 # any values it wants for environment, memory, cpu, and scale
 rancher:
-  stack: "http-test"                                # Stack on which to operate, not required
-  project: "Default"                                # Override for OPTUNE_PROJECT env
-  api_url: "http://rancher.kumulus.co:8080/v2-beta" # Override for OPTUNE_API_URL must include /v2-beta
-  # api_key: "ABCDEFG"                              # Override for OPTUNE_API_KEY
-  # api_secret: "HIJKLMNO"                          # Override for OPTUNE_API_SECRET
+  # stack: stack to operate on, not required
+  # project: "Environment" in the UI, on which to find the stack(s) to operate on
+  # api_url: In the event that the servo is not in the Rancher environment
+  # api_key: as an alternative to passing the API key
+  # api_secret: as an alternative to passing the API
+  #
+  # These initial parameters can also be defined as environment variables
+  # OPTUNE_STACK
+  # OPTUNE_PROJECT
+  # OPTUNE_API_URL
+  # OPTUNE_API_KEY
+  # OPTUNE_API_SECRET
 
-  service:                                          # We currently only support Rancher services
-    front:                                          # Specific overrides for the 'front' service
-      cpu:                                          # Defines the number of cpu cores
-        min: 0.25
-        max: 10
-      memory:                                       # Defines memory reservation size range
-          min: 0.5
-          max: 16
-          step: 0.5
-          units: G                                  # Use Gb as the configuration unit
-      environment:
-        GC:                                         # adjust replaces that value with the
-          min: 1                                    # first integer it sees 'FOO 1 BAR 2'
-          max: 10                                   # would replace the 1 as regex finds it first
-      replicas:                                     # number of instances for the service
-        min: 1
-        max: 10
-    back:                                           # Specific overrides for the 'back' service
+  stack: "http-test"
+  project: "Default"
+  api_url: "http://rancher.kumulus.co:8080/v2-beta"
+  # api_key: "ABCDEFG"
+  # api_secret: "HIJKLMNO"
+
+  # We currently only support Rancher services
+  services:
+    # overrides for the 'front' service
+    front:
+    # specific envrionment parameters to add
+    # If this parameter isn't already in the stack it is assumed to take
+    # a wholy numeric parameter (e.g. 1024) as a value.  If the enviornment
+    # variable already exists, then the first number will be extracted for
+    # the --describe function, and the number will be replaced in the parameter
+    # so an environment variable of MEMORY=1024M would become MEMORY=2048M
       environment:
         MEMORY:
-          min: 512
-          max: 16384
-          step: 64
-          units: Mi                                 # Use megabytes as the configuration unit
-      replicas:
-        min: 2
-        max: 20
-    http-slb:                                       # The 'http-slb' service is excluded
+          value: 2048M
+    back:
+      environment:
+        MEMORY:
+          value: 3072M
+      scale:
+        value: 2
+      compute:
+        value: 500
+      memory:
+        value: 4096
+    # The 'http-slb' service is excluded
+    http-slb:
       exclude: true
