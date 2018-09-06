@@ -294,20 +294,20 @@ class Config:
             return os.getenv(default_env)
 
 # Basic CLI for client.py
-if __name__ == "__main__":
-    def pull_data_objects(data):
+class ClientCli:
+    def pull_data_objects(self, data):
         hash = {}
         for datum in data['data']:
             hash[datum['name']] = datum['id']
         return hash
 
-    def env_data(data, capabilities):
+    def env_data(self, data, capabilities):
         hash = {}
         for capability in capabilities.keys():
             hash[capability] = data.get(capability, capabilities[capability])
         return hash
 
-    def handle_command(id, function, keys):
+    def handle_command(self, id, function, keys):
         try:
             r = function(id)
         except (Exception) as e:
@@ -316,7 +316,7 @@ if __name__ == "__main__":
             sys.exit(3)
 
         if id == None: # List names
-            return pull_data_objects(r)
+            return self.pull_data_objects(r)
         elif len(keys) == 0:
             return r
         else:
@@ -325,33 +325,39 @@ if __name__ == "__main__":
                 hash[key] = r.get(key)
             return hash
 
-    config = Config()
-    client = Client(config)
+    def __init__(self, *args, **kwargs):
+        self.config = Config()
+        self.client = Client(self.config)
 
-    parser = argparse.ArgumentParser(description='Adjust Rancher Stack Settings')
-    parser.add_argument('--projects', nargs='?', help='List projects with no args or the projects stacks with args.', action='append')
-    parser.add_argument('--stacks', nargs='?', help='List stacks with no args or the stacks services with args.', action='append')
-    parser.add_argument('--services', nargs='?', help='List services with no args or the services instances with args.', action='append')
-    parser.add_argument('--service', help='Used with instances to print the instances of a service.')
-    parser.add_argument('--instances', nargs='?', help='List services with no args or the services instances with args.', action='append')
+        self.parser = argparse.ArgumentParser(description='Adjust Rancher Stack Settings')
+        self.parser.add_argument('--projects', nargs='?', help='List projects with no args or the projects stacks with args.', action='append')
+        self.parser.add_argument('--stacks', nargs='?', help='List stacks with no args or the stacks services with args.', action='append')
+        self.parser.add_argument('--services', nargs='?', help='List services with no args or the services instances with args.', action='append')
+        self.parser.add_argument('--service', help='Used with instances to print the instances of a service.')
+        self.parser.add_argument('--instances', nargs='?', help='List services with no args or the services instances with args.', action='append')
 
-    args = parser.parse_args()
-    if args.projects:
-        r = handle_command(args.projects[0], lambda id :client.projects(id), ['id', 'name', 'data'])
-        client.print(r)
-    elif args.services:
-        r = handle_command(args.services[0], lambda id :client.services(name=id), ['id', 'name', 'launchConfig'])
-        client.print(r)
-    elif args.stacks:
-        r = handle_command(args.stacks[0], lambda id :client.stacks(name=id), ['id', 'name', 'serviceIds'])
-        client.print(r)
-    elif args.instances:
-        instance_id = args.instances[0]
-        r = handle_command([args.service, instance_id], lambda ids :client.instances(service_name=ids[0], name=ids[1]), [])
-        if instance_id == None: # List instance names
-            r = pull_data_objects(r)
+    def run(self):
+        args = self.parser.parse_args()
+        if args.projects:
+            r = self.handle_command(args.projects[0], lambda id :self.client.projects(id), ['id', 'name', 'data'])
+            self.client.print(r)
+        elif args.services:
+            r = self.handle_command(args.services[0], lambda id :self.client.services(name=id), ['id', 'name', 'launchConfig'])
+            self.client.print(r)
+        elif args.stacks:
+            r = self.handle_command(args.stacks[0], lambda id :self.client.stacks(name=id), ['id', 'name', 'serviceIds'])
+            self.client.print(r)
+        elif args.instances:
+            instance_id = args.instances[0]
+            r = self.handle_command([args.service, instance_id], lambda ids :self.client.instances(service_name=ids[0], name=ids[1]), [])
+            if instance_id == None: # List instance names
+                r = self.pull_data_objects(r)
+            else:
+                r = self.env_data(r['data'][0], client.capabilities(args.service))
+            self.client.print(r)
         else:
-            r = env_data(r['data'][0], client.capabilities(args.service))
-        client.print(r)
-    else:
-        parser.print_help()
+            self.parser.print_help()
+
+if __name__ == "__main__":
+    cli = ClientCli()
+    cli.run()
