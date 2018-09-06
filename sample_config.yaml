@@ -38,7 +38,7 @@ rancher:
       environment:
         MEMORY:
           value: 3072M
-      scale:
+      replicas:
         value: 2
       compute:
         value: 500

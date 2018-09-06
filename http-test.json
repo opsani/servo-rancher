@@ -1,17 +1,17 @@
 {
     "back": {
-        "cpu": 300,
-        "memory": "1024",
-        "scale": 2
+        "cpu": 3,
+        "memory": 1,
+        "replicas": 2
     },
     "front": {
-        "cpu": 500,
+        "cpu": 5,
         "environment": {
             "MEMORY": {
-                "value": "2048"
+                "value": 2
             }
         },
-        "memory": "4096",
-        "scale": 2
+        "memory": 4,
+        "replicas": 2
     }
 }
