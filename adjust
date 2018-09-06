@@ -74,10 +74,9 @@ class RancherAdjust:
 
     def adjust(self, stackname):
         data = json.load(sys.stdin)
-        data = map_servo_to_rancher(data)
-        client.print(data)
+        data = self.map_servo_to_rancher(data)
         try:
-            client.services(name=stackname, action='upgrade', body=data[stackname])
+            self.client.services(name=stackname, action='upgrade', body=data[stackname])
         except Exception as e:
             traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
