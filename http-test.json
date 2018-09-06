@@ -13,5 +13,10 @@
         },
         "memory": 4,
         "replicas": 2
+    },
+    "http-slb" : {
+      "labels" : {
+        "com.opsani.exluded": "true"
+      }
     }
 }

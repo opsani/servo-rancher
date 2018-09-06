@@ -57,7 +57,7 @@ class Client:
     def capabilities(self, service_name=None):
         merged = self.merge(
             self.config.services_defaults.copy(),
-            self.config.services.get(service_name, {}))
+            self.config.services_config.get(service_name, {}))
         if merged.get('exclude', None) != None:
             return {}
         return merged
@@ -104,15 +104,19 @@ class Client:
         return self.scope_uri(self.projects_uri(project_name, True) + '/services', self.service_id(name))
 
     def prepare_service_upgrade(self, service_name, body):
-        service = self.services(name=service_name)
+        service = self.services(name=service_name, body=None)
         launchConfig = service.get('launchConfig', {})
-        launchConfig = self.merge(launchConfig, body)
+
+        if 'com.opsani.exclude' in launchConfig.get('labels', {}).keys():
+            raise PermissionError('{} is not allowed to be modified due to exclusion rules'.format(service_name))
+
+        mergedLaunchConfig = self.merge(launchConfig, body)
         return {'inServiceStrategy': {
                 'type': 'inServiceUpgradeStrategy',
                 'batchSize': 1,
                 'intervalMillis': 2000,
                 'startFirst': False,
-                'launchConfig': launchConfig,
+                'launchConfig': mergedLaunchConfig,
                 'secondaryLaunchConfigs': [] } }
 
     def handle_signal(self, signum, frame):
@@ -242,10 +246,11 @@ class Client:
             print("PUT {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
             response = requests.put(url, json=body, auth=auth, headers=self.headers)
         else:
-            print("GET {}".format(url), file=sys.stderr,) # DEBUG URL info to stderr
+            print("GET {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
             response = requests.get(url, auth=auth, headers=self.headers)
 
         data = json.loads(response.text)
+
         try:
             response.raise_for_status()
             return data
@@ -271,8 +276,8 @@ class Config:
         self.api_url = conf.get('api_url', os.getenv('OPTUNE_API_URL'))
         self.project = conf.get('project', os.getenv('OPTUNE_PROJECT'))
         self.stack = conf.get('stack')
-        self.services = conf.get('services', {})
-        self.services_defaults = { 'environment': None, 'cpuCount': None,
+        self.services_config = conf.get('services', {})
+        self.services_defaults = { 'environment': None, 'cpuCount': None, 'labels': None,
                                    'memory':      None, 'count':    None }
 
     def read_config(self, filename):
