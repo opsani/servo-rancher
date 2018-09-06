@@ -31,6 +31,8 @@ class RancherAdjust:
             service_settings['cpu'] = service_settings.pop('cpuCount', None)
             service_settings['replicas'] = service_settings.pop('count', None)
             service_settings['memory'] = service_settings.pop('memoryMb', None)
+            if service_settings['memory']:
+                service_settings['memory'] = int(service_settings['memory']) / 1000 # convert to G
             # environment is the same
             dict[service] = service_settings
         return dict
@@ -42,6 +44,8 @@ class RancherAdjust:
             service_settings['cpuCount'] = service_settings.pop('cpu', None)
             service_settings['count'] = service_settings.pop('replicas', None)
             service_settings['memoryMb'] = service_settings.pop('memory', None)
+            if service_settings['memoryMb']:
+                service_settings['memoryMb'] = int(service_settings['memoryMb']) * 1000 # convert to M
             dict[service] = service_settings
         return dict
 
