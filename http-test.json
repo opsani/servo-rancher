@@ -1,7 +1,7 @@
 {
     "back": {
-        "cpu": 3,
-        "mem": 1,
+        "cpu": 2,
+        "mem": 3,
         "replicas": 2
     },
     "front": {
@@ -12,7 +12,7 @@
             "value": null,
             "GC": "-XX:+UseSerialGC"
         },
-        "mem": 1,
+        "mem": 2,
         "replicas": 1
     },
     "http-slb" : {

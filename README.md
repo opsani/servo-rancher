@@ -1,32 +1,135 @@
 # servo-rancher
-Optune servo driver for Rancher (v1.6)
+Optune servo driver for Rancher 1.6.
 
-This driver supports an application deployed via Rancher as a Stack.
+This driver supports adjusting Services deployed via Rancher in a Stack.
 
-A Rancher Stack may contain multiple services (components in Servo parlance), each of which may
-individually be modified by the adjust driver. Each service in the Stack is considered a separately
+A Rancher Stack may contain multiple Services (components in Servo parlance). Each may be
+individually modified by the adjust driver. Each service in the Stack is considered a separately
 adjustable component.
 
-For each component of the application, the following settings are automatically available
-when 'adjust --info' is run:
-* replicas (number of service instances)
-* memory reservation
-* cpu core reservation
-* environment variables
+# USAGE
 
-An optional configuration file may be used to define scale of variable modification. Any custom
-component settings in it are also returned by 'adjust --info' and map to environment variables of
-the matching container.
+To describe a Stack:
 
-Currently the following parameters are supported:
+    ./adjust --describe <stack-name-or-id>
 
-environment variables
-* cpu: millicpu share of the CPU resources
-* memory: memory reserved for the container
+To adjust a Service
 
-See [sample_config.yaml](sample_config.yaml) for an example configuration.
+    ./adjust <service-name-or-id> < adjust.json
 
-# Testing:
+See: [`USAGE-adjust.md`](USAGE-adjust.md) for full documentation.
+
+# CONFIGURATION
+
+## environment
+
+Adjust requires several configuration variables to operate. These can be provided via `config.yaml`
+or environment settings. You can either place these into the environment directly, or supply
+a file called `.env` in the root directory with adjust.
+
+`.env`
+```
+OPTUNE_API_URL='http://rancher.api/v2-beta'
+OPTUNE_API_KEY=myrancherapikey
+OPTUNE_API_SECRET=myranchersecretkey
+OPTUNE_PROJECT=Default
+OPTUNE_STACK=my-stack
+OPTUNE_CONFIG=an *optional* path to a config.yaml file
+```
+
+There is also a [`sample_config.yaml`](sample_config.yaml) file which you can tweak as needed.
+If provided, the yaml file takes precidence over the environment variables. If the file is named
+`config.yaml` and coxists with adjust, it will automatically be loaded.
+
+## `config.yaml`
+
+### Auto Discovered settings
+
+For each service of the stack, the following settings are *automatically* available when
+`adjust --describe` is run:
+
+* `cpu`: number of reserved cores
+* `mem`: memory reservation for the service
+* `replicas`: number of service instances
+
+### Environment Settings
+
+In addition, an *optional* configuration file may be used to define which environment variables
+can be modified. By default, **NO** environment variables may be changed.
+
+The `environment` settings is a whitelist hash of the environment variables adjust is allowed to
+modify. It is a strict replace of the current value, no substring matching currently occurs.
+However, if the configuration provides a `units` key/value as part of the variable description,
+integer values passed during an `adjust` operation will automatically be converted from Gb into the
+provided units.
+
+For example, a `config.yaml` configured with:
+
+    MEMORY:
+        units: M
+
+Will convert an adjust JSON:
+
+    MEMORY: 2
+
+Into:
+
+    MEMORY: 2048M
+
+All of these settings will be returned when calling `adjust --describe`. Each maps to a
+[`launchConfig`](https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/launchConfig/)
+setting of the matching container as follows:
+
+
+* `cpu` (int) -> `vcpu`
+* `mem` (int) -> `memoryMb`
+* `replicas` (int) -> `count`
+* `environment` (map) -> `environment`
+
+### Exclusions
+
+A service may be excluded from operation by having an `exclude` key provided within its key/value
+set. If a service is configured as such, it will be ignored upon an `adjust` if it is requested.
+
+In addition, if a `launchConfig` `label` has been configed with `com.opsani.exclude` it will be
+excluded, even if it does not have a matching `exclude` tag in the `config.yaml`.
+
+See [`sample_config.yaml`](sample_config.yaml) for an example configuration.
+
+
+## `adjust.json`
+
+To perform an adjust, a JSON file must be supplied on STDIN. The format should be similar to other
+adjust.json files.
+
+An adjust *may* list multiple services within it. But it **must** define the service to upgrade
+otherwise no upgrade will take place.
+
+Adjust is called by providing the service name and passing JSON on stdin.
+
+    adjust service < adjust.json
+
+The service hash should include key/values from those defined above
+(`cpu`, `mem`, `replicas`, `environment`). The first three keys should have integer values.
+If environment is passed, any keys within that hash must be included in a supplied `config.yaml` or
+they will be ignored.
+
+The following sample configures the `front` service to have a single cpu and sets the `MEMORY`
+environment variable to 1Gb.
+```
+{
+    "front": {
+        "cpu": 1
+        "environment": {
+            "MEMORY": 1
+        }
+    }
+}
+```
+
+See [`http-test.json`](http-test.json) for an example configuration.
+
+# TESTING
 
 ## Setting up a test enviornment
 
@@ -126,3 +229,4 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r ./requirements.txt
 ```
+

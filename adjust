@@ -28,10 +28,12 @@ class RancherAdjust:
     def map_rancher_to_servo(self, dict):
         for service in dict.keys():
             service_settings = dict[service]
-            service_settings['cpu'] = service_settings.pop('vcpu', None)
-            service_settings['replicas'] = service_settings.pop('count', None)
-            service_settings['mem'] = service_settings.pop('memoryMb', None)
-            if service_settings['mem']['value']:
+            service_settings['cpu'] = service_settings.pop('vcpu', {})
+            service_settings['replicas'] = service_settings.pop('count', {})
+            if service_settings['replicas'].get('value') is None:
+                service_settings['replicas']['value'] = 1
+            service_settings['mem'] = service_settings.pop('memoryMb', {})
+            if service_settings['mem'].get('value'):
                 service_settings['mem']['value'] = int(service_settings['mem']['value']) / 1024**2 # convert to G
             # environment is the same
             dict[service] = service_settings
@@ -53,13 +55,13 @@ class RancherAdjust:
         self.config = RancherConfig()
         self.client = RancherClient(self.config)
 
-        parser = argparse.ArgumentParser(description='Adjust Rancher Stack Settings')
-        parser.add_argument('stackname', nargs='?', help='Name of the stack to update. Pass a capability.json file to update that stack.', default=None)
-        parser.add_argument('--version', help='Print the current version', action='store_true')
-        parser.add_argument('--info', help='Print version and capabilities in JSON.', action='store_true')
-        parser.add_argument('--describe', nargs='?', help='Describe actions which can be performed on a stack.', action='append')
+        self.parser = argparse.ArgumentParser(description='Adjust Rancher Stack Settings')
+        self.parser.add_argument('stackname', nargs='?', help='Name of the stack to update. Pass a capability.json file to update that stack.', default=None)
+        self.parser.add_argument('--version', help='Print the current version', action='store_true')
+        self.parser.add_argument('--info', help='Print version and capabilities in JSON.', action='store_true')
+        self.parser.add_argument('--describe', nargs='?', help='Describe actions which can be performed on a stack.', action='append')
 
-        self.args = parser.parse_args()
+        self.args = self.parser.parse_args()
 
     def describe(self, stack_id):
         try:
@@ -92,7 +94,7 @@ class RancherAdjust:
         elif self.args.stackname:
             self.adjust(self.args.stackname)
         else:
-            parser.print_help()
+            self.parser.print_help()
 
 if __name__ == "__main__":
     adjuster = RancherAdjust()

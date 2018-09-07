@@ -175,6 +175,9 @@ class RancherClient:
         :param body: A new launchConfig hash (Default value = None)
         :returns: A dict of the API response.
         """
+        if self.config.services_config.get(name, {}).get('exclude'):
+            raise PermissionError('{} is not allowed to be modified due to exclusion rules'.format(name))
+
         uri = self.services_uri(project_name, stack_name, name)
         if body:
             body = self.prepare_service_upgrade(name, body)
@@ -241,13 +244,16 @@ class RancherClient:
         :raises: PermissionError if the service is labelled 'com.opsani.exclude'
         :returns: A dictionary for the proper inService upgrade and launchConfig
         """
+        if not body:
+            return {}
+
         service = self.services(name=service_name)
         launchConfig = service.get('launchConfig', {})
 
         if 'com.opsani.exclude' in launchConfig.get('labels', {}).keys():
             raise PermissionError('{} is not allowed to be modified due to exclusion rules'.format(service_name))
 
-        body['environment'] = self.filter_environment(service_name, body['environment'])
+        body['environment'] = self.filter_environment(service_name, body.get('environment', {}))
 
         mergedLaunchConfig = self.merge(body, launchConfig)
 
@@ -376,7 +382,7 @@ class RancherClient:
         if action:
             url = url + '?action=' + action
             print("POST {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
-            self.print(body, file=sys.stderr)
+            #self.print(body, file=sys.stderr)
             response = requests.post(url, json=body, auth=auth, headers=self.headers)
         elif body:
             print("PUT {}".format(url), file=sys.stderr) # DEBUG URL info to stderr

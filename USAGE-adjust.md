@@ -1,20 +1,23 @@
-## Configuration
 
-You need to supply the configuration to adjust to get going. It doesn't need a config.yaml but it
-does need environment settings. You can either place these into the environment directly, or supply
-an file called `.env` in the root directory with adjust.
+## Help
 
-.env
 ```
-OPTUNE_API_URL='http://rancher.api/v2-beta'
-OPTUNE_API_KEY=myrancherapikey
-OPTUNE_API_SECRET=myranchersecretkey
-OPTUNE_PROJECT=Default
-OPTUNE_CONFIG=an *optional* path to a config.yaml file
-```
-There is also a [`sample_config.yaml`](sample_config.yaml) file which you can tweak as needed.
-If provided, the yaml file takes precidence over the environment variables.
+$ ./adjust
+usage: adjust [-h] [--version] [--info] [--describe [DESCRIBE]] [stackname]
 
+Adjust Rancher Stack Settings
+
+positional arguments:
+  stackname             Name of the stack to update. Pass a capability.json
+                        file to update that stack.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version             Print the current version
+  --info                Print version and capabilities in JSON.
+  --describe [DESCRIBE]
+                        Describe actions which can be performed on a stack.
+```
 
 ## List version
 
@@ -33,50 +36,53 @@ $ ./adjust --info
 ## Describe stack
 
 ```
-$ ./adjust --describe http-test
+$ ./adjust --describe
 {
     "back": {
+        "cpu": {
+            "value": 2
+        },
         "environment": {
-            "MEMORY": {
-                "max": 16384,
-                "min": 512,
-                "step": 64,
-                "template": "MEMORY: '{{parameter}}M'"
-            }
+            "value": {}
         },
-        "memoryMb": {
-            "max": 16384,
-            "min": 512,
-            "step": 64
+        "mem": {
+            "value": 3.0
         },
-        "vcpu": {
-            "max": 10,
-            "min": 1
+        "replicas": {
+            "value": 2
         }
     },
     "front": {
+        "cpu": {
+            "value": 1
+        },
         "environment": {
-            "GC": {
-                "template": "GC: '-XX:+UsePArallelGC -XX:ParallelGCThreads=10'"
-            },
-            "MEMORY": {
-                "max": 16384,
-                "min": 512,
-                "step": 64,
-                "template": "MEMORY: '1024M'"
+            "value": {
+                "GC": "-XX:+UseSerialGC",
+                "MEMORY": "1024M"
             }
         },
-        "memoryMb": {
-            "max": 16384,
-            "min": 512,
-            "step": 64
+        "mem": {
+            "value": 2.0
         },
-        "vcpu": {
-            "max": 10,
-            "min": 1
+        "replicas": {
+            "value": 1
         }
     },
-    "http-slb": {}
+    "http-slb": {
+        "cpu": {
+            "value": null
+        },
+        "environment": {
+            "value": {}
+        },
+        "mem": {
+            "value": null
+        },
+        "replicas": {
+            "value": 1
+        }
+    }
 }
 ```
 
@@ -92,7 +98,6 @@ $ ./adjust front < http-test.json
     "progress": 0,
     "stage": "upgrading"
 }
-GET http://rancher.kumulus.co:8080/v2-beta/projects/1a5/services/1s13
 {
     "message": [
         "Transition: In Progress; Health: degraded"
@@ -101,7 +106,6 @@ GET http://rancher.kumulus.co:8080/v2-beta/projects/1a5/services/1s13
     "progress": 25,
     "stage": "upgrading"
 }
-GET http://rancher.kumulus.co:8080/v2-beta/projects/1a5/services/1s13
 {
     "message": [
         "Transition: In Progress; Health: initializing"
@@ -110,7 +114,6 @@ GET http://rancher.kumulus.co:8080/v2-beta/projects/1a5/services/1s13
     "progress": 35,
     "stage": "upgrading"
 }
-GET http://rancher.kumulus.co:8080/v2-beta/projects/1a5/services/1s13
 {
     "message": [
         "Transition: None; Health: healthy"
@@ -142,13 +145,11 @@ $ ./adjust front < http-test.json
     "progress": 0,
     "state": "canceling-upgrade"
 }
-GET http://rancher.kumulus.co:8080/v2-beta/projects/1a5/services/1s13
 {
     "message": "cancelling operation on service 1s13",
     "progress": 0,
     "state": "canceling-upgrade"
 }
-GET http://rancher.kumulus.co:8080/v2-beta/projects/1a5/services/1s13
 {
     "message": "cancelling operation on service 1s13",
     "progress": 0,
