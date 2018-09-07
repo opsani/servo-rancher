@@ -22,12 +22,29 @@ if "https_proxy" in os.environ:
 # Client is a partial implementation of the Rancher API
 class RancherClient:
     """ """
+    # valid mem units: E, P, T, G, M, K, Ei, Pi, Ti, Gi, Mi, Ki
+    # nb: 'm' suffix found after setting 0.7Gi
+    MUMAP = {"E":-3,  "P":-2,  "T":-1,  "G":0,  "M":1,  "K":2, "m":3}
+
     # Init can be passed in the API info
     # but if you have the same values in your config, that will override them
     def __init__(self, config=None):
         self.config = config
         self.headers = { 'Content-Type': 'application/json' }
         self.name_mappings = {}      # Cache for human name to rancher id. eg. front = 1s5
+
+    def g_to_unit(self, size, convert_to):
+        '''
+        Converts a size value in G to another size
+        :param size: the size in G of the value to be converted
+        :param convert_to: the units to convert to
+        :returns: the converted size or the original value if unsupported.
+        '''
+        for units , power in self.MUMAP.items():
+            if convert_to.startswith(units):
+                size = ( float(size) * 1024 ** power )
+                break
+        return float(size) if size < 1 else int(size)
 
     def names_to_ids(self, response):
         """
@@ -69,7 +86,7 @@ class RancherClient:
         :param name: the name of the service
         :returns: the id of the service
         """
-        return self.name_to_id(name, 'service', lambda: self.services())
+        return self.name_to_id(name, 'service' + self.config.stack, lambda: self.services())
 
     def stack_id(self, name):
         """
@@ -108,46 +125,25 @@ class RancherClient:
                 destination[key] = value
         return destination
 
-    def scope_uri(self, base, option=None, delim='/'):
+    def scope_uri(self, base, option=None):
         """
         Constructs a URI if given some options. Most URIs will take /foo and /foo/{id}
         This helper does the right thing if you have an {id} (in the above case) or not
         :param base: The base uri ('/projects')
         :param option: an optional object param (a project id)  (Default value = None)
-        :param delim: An ending delimiter  (Default value = '/')
         :returns: a constrcted URI like /projects/1s5
         """
         if option:
-            base = base + delim + option
+            base = base + '/' + option
         return base
 
-    def uuid(self, uuid):
-        """
-        https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/apiKey/
-        :param uuid: the requested apikey uuid
-        :returns: the URI to an apikey uuid
-        """
-        uri = self.scope_uri('/apiKey', uuid, '?uuid=')
-        return self.render(uri)
-
-    def accounts(self, name=None):
-        """
-        https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/account/
-        :param name: the requested account name  (Default value = None)
-        :returns: the URI to an account or accounts
-        """
-        uri = self.scope_uri('/accounts', name, '?name=')
-        return self.render(uri)
-
-    def projects_uri(self, name=None, default=False):
+    def projects_uri(self, name=None):
         """
         https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/project/
         :param name: the requested project name (Default value = None)
         :param default: if True, will use the configured default project  (Default value = False)
         :returns: the uri to a project
         """
-        if default and name == None:
-            name = self.config.project
         return self.scope_uri('/projects', self.project_id(name))
 
     # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/project/
@@ -158,15 +154,18 @@ class RancherClient:
         """
         return self.render(self.projects_uri(name))
 
-    def services_uri(self, project_name=None, name=None):
+    def services_uri(self, project_name=None, stack_name=None, name=None):
         """
         :param project_name:  (Default value = None)
         :param name:  (Default value = None)
         :returns: the service or all services
         """
-        return self.scope_uri(self.projects_uri(project_name, True) + '/services', self.service_id(name))
+        if stack_name == None:
+            stack_name = self.config.stack
+        prefix = '' if name else self.stacks_uri(project_name, stack_name)
+        return self.scope_uri(prefix + '/services', self.service_id(name))
 
-    def services(self, project_name=None, name=None, action=None, body=None):
+    def services(self, project_name=None, stack_name=None, name=None, action=None, body=None):
         """
         Allows for querying and upgrading of services.
         https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/service/
@@ -176,14 +175,14 @@ class RancherClient:
         :param body: A new launchConfig hash (Default value = None)
         :returns: A dict of the API response.
         """
-        uri = self.services_uri(project_name, name)
+        uri = self.services_uri(project_name, stack_name, name)
         if body:
             body = self.prepare_service_upgrade(name, body)
             action = 'upgrade'
             service = self.services(name=name)
             # only try to upgrade if the service is active
             if service.get('state') == 'active':
-                self.render(uri, action, body)
+                self.render(uri, action=action, body=body)
             self.wait_for_upgrade(name)
 
             # this commits
@@ -195,7 +194,10 @@ class RancherClient:
         :param project_name:  (Default value = None)
         :param name:  (Default value = None)
         """
-        return self.scope_uri(self.projects_uri(project_name, True) + '/stacks', self.stack_id(name))
+        if project_name == None:
+            project_name = self.config.project
+        prefix = '' if name else self.projects_uri(project_name)
+        return self.scope_uri(self.projects_uri(project_name) + '/stacks', self.stack_id(name))
 
     # https://rancher.com/docs/rancher/v1.6/en/api/v2-beta/api-resources/stack/
     def stacks(self, project_name=None, name=None, action=None, body=None):
@@ -208,16 +210,27 @@ class RancherClient:
         uri = self.stacks_uri(project_name, name)
         return self.render(uri, action, body)
 
-    def instances(self, project_name=None, service_name=None, name=None, action=None, body=None):
+    def filter_environment(self, service_name, environment = {}):
         """
-        :param project_name:  (Default value = None)
-        :param service_name:  (Default value = None)
-        :param name:  (Default value = None)
-        :param action:  (Default value = None)
-        :param body:  (Default value = None)
+        Filters out any environment variables which are not configured in our config.yaml.
+        If a config variable has a 'units' option, then it will convert an integer value from
+        Gb (servo's base unit) into the requested units.
+        :param service_name: The service on which we are working
+        :param environment: The launchConfig environment changes (Defaule value = {})
+        :returns: An dictionary environment filtred based on our config rules
         """
-        uri = self.scope_uri(self.services_uri(project_name, service_name) + '/instances', name)
-        return self.render(uri, action, body)
+        allowed_env = self.config.services_config.get(service_name, {}).get('environment', {})
+
+        for key in list(environment.keys()):
+            value = allowed_env.get(key, {})
+            units = value.get('units') if isinstance(value, dict) else None
+            if key not in allowed_env.keys():
+                del environment[key]
+            elif units:
+                size = self.g_to_unit(environment[key], units)
+                environment[key] = str(size) + units
+
+        return environment
 
     def prepare_service_upgrade(self, service_name, body):
         """
@@ -228,13 +241,16 @@ class RancherClient:
         :raises: PermissionError if the service is labelled 'com.opsani.exclude'
         :returns: A dictionary for the proper inService upgrade and launchConfig
         """
-        service = self.services(name=service_name, body=None)
+        service = self.services(name=service_name)
         launchConfig = service.get('launchConfig', {})
 
         if 'com.opsani.exclude' in launchConfig.get('labels', {}).keys():
             raise PermissionError('{} is not allowed to be modified due to exclusion rules'.format(service_name))
 
-        mergedLaunchConfig = self.merge(launchConfig, body)
+        body['environment'] = self.filter_environment(service_name, body['environment'])
+
+        mergedLaunchConfig = self.merge(body, launchConfig)
+
         return {'inServiceStrategy': {
                 'type': 'inServiceUpgradeStrategy',
                 'batchSize': 1,
@@ -317,12 +333,9 @@ class RancherClient:
         :param stack_name:  (Default value = None)
         :returns: the modifiable parameters.
         """
-        if stack_name == None:
-            stack_name = self.config.stack
         response = {}
-        stack = self.stacks(name=stack_name)
-        for service_id in stack.get('serviceIds'):
-            service = self.services(name=service_id)
+        stack = self.services(stack_name=stack_name)
+        for service in stack.get('data', []):
             launchConfig = service.get('launchConfig', {})
             svc_name = service.get('name')
             response[svc_name] = {}
@@ -352,8 +365,8 @@ class RancherClient:
         * rollback
 
         :param uri: to operate on
-        :param action: suggests a PUT operation  (Default value = None)
-        :param body: suggests a POST operation (Default value = None)
+        :param action: suggests a POST operation  (Default value = None)
+        :param body: suggests a PUT operation (Default value = None)
         :returns: the API response as a dict
         """
         url = self.config.api_url + uri
@@ -363,7 +376,7 @@ class RancherClient:
         if action:
             url = url + '?action=' + action
             print("POST {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
-            #self.print(body, file=sys.stderr)
+            self.print(body, file=sys.stderr)
             response = requests.post(url, json=body, auth=auth, headers=self.headers)
         elif body:
             print("PUT {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
@@ -410,10 +423,10 @@ class RancherConfig:
         self.secret_key = conf.get('api_secret', self.secret_key)
         self.api_url = conf.get('api_url', os.getenv('OPTUNE_API_URL'))
         self.project = conf.get('project', os.getenv('OPTUNE_PROJECT'))
-        self.stack = conf.get('stack')
+        self.stack = conf.get('stack', os.getenv('OPTUNE_STACK'))
         self.services_config = conf.get('services', {})
-        self.services_defaults = { 'environment': None, 'cpuCount': None, 'labels': None,
-                                   'memory':      None, 'count':    None }
+        self.services_defaults = { 'environment': None, 'vcpu': None,
+                                   'memoryMb':    None, 'count':    None }
 
     def read_config(self, filename):
         """
@@ -498,8 +511,6 @@ class RancherClientCli:
         self.parser.add_argument('--projects', nargs='?', help='List projects with no args or the projects stacks with args.', action='append')
         self.parser.add_argument('--stacks', nargs='?', help='List stacks with no args or the stacks services with args.', action='append')
         self.parser.add_argument('--services', nargs='?', help='List services with no args or the services instances with args.', action='append')
-        self.parser.add_argument('--service', help='Used with instances to print the instances of a service.')
-        self.parser.add_argument('--instances', nargs='?', help='List services with no args or the services instances with args.', action='append')
 
     def run(self):
         """ """
@@ -512,14 +523,6 @@ class RancherClientCli:
             self.client.print(r)
         elif args.stacks:
             r = self.handle_command(args.stacks[0], lambda id :self.client.stacks(name=id), ['id', 'name', 'serviceIds'])
-            self.client.print(r)
-        elif args.instances:
-            instance_id = args.instances[0]
-            r = self.handle_command([args.service, instance_id], lambda ids :self.client.instances(service_name=ids[0], name=ids[1]), [])
-            if instance_id == None: # List instance names
-                r = self.pull_data_objects(r)
-            else:
-                r = self.env_data(r['data'][0], client.capabilities(args.service))
             self.client.print(r)
         else:
             self.parser.print_help()

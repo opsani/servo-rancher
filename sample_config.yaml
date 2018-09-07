@@ -1,6 +1,7 @@
 # This is a sample configuration for a Rancher service. It defines the operating parameters for
 # each service. It is not a required file, and by default, the servo will be allowed to pass
-# any values it wants for environment, memory (mem), cpu, and scale (replicas).
+# any values it wants for mem, cpu, and replicas.
+# Environment variables MUST be whitelisted in this file or they are automatically removed.
 rancher:
   stack: "http-test"                                # Rancher Stack to use. Overrides OPTUNE_STACK
   project: "Default"                                # Rancher Project to use. Overrides OPTUNE_PROJECT
@@ -17,7 +18,8 @@ rancher:
       # If the unit is not recognized, the value is passed as is.
       environment:
         MEMORY:
-          units: M
+          units: M # Can be m, K, M, G, T, P, or E
+        GC: null
     back:
       environment:
         MEMORY:

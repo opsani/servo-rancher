@@ -5,12 +5,15 @@
         "replicas": 2
     },
     "front": {
-        "cpu": 5,
+        "cpu": 1,
         "environment": {
-            "MEMORY": 2
+            "MEMORY": 1,
+            "HACKS": 1,
+            "value": null,
+            "GC": "-XX:+UseSerialGC"
         },
-        "mem": 4,
-        "replicas": 2
+        "mem": 1,
+        "replicas": 1
     },
     "http-slb" : {
       "labels" : {
