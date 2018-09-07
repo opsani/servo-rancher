@@ -1,17 +1,15 @@
 {
     "back": {
         "cpu": 3,
-        "memory": 1,
+        "mem": 1,
         "replicas": 2
     },
     "front": {
         "cpu": 5,
         "environment": {
-            "MEMORY": {
-                "value": 2
-            }
+            "MEMORY": 2
         },
-        "memory": 4,
+        "mem": 4,
         "replicas": 2
     },
     "http-slb" : {
