@@ -10,6 +10,7 @@ import signal
 import sys, json, os
 import time
 import yaml
+import pdb
 
 load_dotenv()
 
@@ -102,11 +103,15 @@ class RancherClient:
         :param service_name:  (Default value = None)
         :returns:: the adjustable parametesrs for the provided service
         """
-        merged = self.merge(
-            self.config.services_defaults.copy(),
-            self.config.services_config.get(service_name, {}))
+        service = self.config.services_config.get(service_name, {})
+        if service is None:
+            service = {}
+        merged = {
+            'settings': self.config.services_defaults,
+            'environment': service.get('environment', {})
+        }
         if merged.get('exclude', None) != None:
-            return {}
+            return None
         return merged
 
     def merge(self, source, destination):
@@ -160,9 +165,11 @@ class RancherClient:
         :param name:  (Default value = None)
         :returns: the service or all services
         """
+        if project_name == None:
+            project_name = self.config.project
         if stack_name == None:
             stack_name = self.config.stack
-        prefix = '' if name else self.stacks_uri(project_name, stack_name)
+        prefix = self.projects_uri(project_name) if name else self.stacks_uri(project_name, stack_name)
         return self.scope_uri(prefix + '/services', self.service_id(name))
 
     def services(self, project_name=None, stack_name=None, name=None, action=None, body=None):
@@ -175,22 +182,27 @@ class RancherClient:
         :param body: A new launchConfig hash (Default value = None)
         :returns: A dict of the API response.
         """
-        if self.config.services_config.get(name, {}).get('exclude'):
+        if self.excluded(name):
             raise PermissionError('{} is not allowed to be modified due to exclusion rules'.format(name))
 
         uri = self.services_uri(project_name, stack_name, name)
-        if body:
+        if body and action == 'upgrade':
             body = self.prepare_service_upgrade(name, body)
-            action = 'upgrade'
             service = self.services(name=name)
             # only try to upgrade if the service is active
-            if service.get('state') == 'active':
-                self.render(uri, action=action, body=body)
-            self.wait_for_upgrade(name)
+            #if service.get('state') == 'active':
+            #    self.render(uri, action=action, body=body)
+            #self.wait_for_upgrade(name)
 
             # this commits
-            return self.services(name=name, action='finishupgrade')
-        return self.render(uri, action)
+            #self.services(name=name, action='finishupgrade')
+
+            # now we can scale the service if needed
+            scale_target = body.get('scale', 1)
+            if service.get('scale') != scale_target:
+                return self.services(project_name, stack_name, name, body = { 'id': service.get('id'), 'scale': scale_target })
+
+        return self.render(uri, action, body=body)
 
     def stacks_uri(self, project_name=None, name=None):
         """
@@ -235,6 +247,36 @@ class RancherClient:
 
         return environment
 
+    def map_servo_to_rancher(self, service):
+        """
+        Maps servo keys to keys which rancher understands
+        {
+            "settings": {
+                "vcpu": 1
+            },
+            "environment": {
+                "KEY": "VALUE"
+            }
+        }
+        """
+        rancher = { 'environment': {} }
+        environment = self.dig(service,  ['environment'])
+        for env in environment.keys():
+            rancher['environment'][env] = self.dig(environment, [env, 'value'])
+
+        settings = self.dig(service,  ['settings'])
+        for setting in settings.keys():
+            if setting == 'cpu':
+                rancher['vcpu'] = self.dig(settings, [setting, 'value'])
+            elif setting == 'replicas':
+                rancher['scale'] = self.dig(settings, [setting, 'value'])
+            elif setting == 'mem':
+                value = self.dig(settings, [setting, 'value'])
+                if isinstance(value, int):
+                    rancher['memoryMb'] =  value * 1024**2
+
+        return rancher
+
     def prepare_service_upgrade(self, service_name, body):
         """
         Builds a request for the service upgrade call.
@@ -253,6 +295,7 @@ class RancherClient:
         if 'com.opsani.exclude' in launchConfig.get('labels', {}).keys():
             raise PermissionError('{} is not allowed to be modified due to exclusion rules'.format(service_name))
 
+        body = self.map_servo_to_rancher(body)
         body['environment'] = self.filter_environment(service_name, body.get('environment', {}))
 
         mergedLaunchConfig = self.merge(body, launchConfig)
@@ -271,7 +314,7 @@ class RancherClient:
         :param signum: The signal which happened
         :param frame: The memory frame in which it happened
         """
-        service_locals = frame.f_locals.get('service')
+        service_locals = frame.f_locals.get('service', {})
         service_id = service_locals.get('id')
         self.print({ 'message': 'cancelling operation on service {}'.format(service_id), 'state': 'Cancelling' })
         self.cancel_upgrade(service_id)
@@ -332,7 +375,44 @@ class RancherClient:
 
             time.sleep(2)
 
-    # Describes what launchConfig parameters can be tweaked for the given stack
+    def dig(self, dict, keys):
+        for key in keys:
+            value = dict.get(key, None)
+            if value is None:
+                return {}
+            else:
+                dict = value
+        return value
+
+    def describe_environment(self, service):
+        launch_env = self.dig(service, ['launchConfig', 'environment'])
+        environment = self.dig(self.capabilities(service.get('name')), ['environment'])
+        response = {}
+        for key in environment:
+            response[key] = environment.get(key, {})
+            response[key]['value'] = launch_env.get(key)
+        return self.pop_none(response)
+
+    def pop_none(self, dict):
+        if dict is None:
+            return None
+        for key in list(dict.keys()):
+            if dict.get(key, {}).get('value') is None:
+                dict.pop(key)
+        return dict if dict else None
+
+    def describe_settings(self, service):
+        launch_config = self.dig(service, ['launchConfig'])
+        response = {}
+        for key in self.config.services_defaults:
+            servo_key = self.config.rancher_to_servo.get(key, key)
+            response[servo_key] = self.config.services_defaults[key]
+            if key == 'scale':
+                response[servo_key]['value'] = service[key]
+            else:
+                response[servo_key]['value'] = launch_config[key]
+        return self.pop_none(response)
+
     def describe(self, stack_name=None):
         """
         Describes the services in a stack based on (possibly) provided parameters
@@ -340,24 +420,25 @@ class RancherClient:
         :returns: the modifiable parameters.
         """
         response = {}
-        stack = self.services(stack_name=stack_name)
+        stack = self.services(stack_name = stack_name)
         for service in stack.get('data', []):
-            launchConfig = service.get('launchConfig', {})
             svc_name = service.get('name')
-            response[svc_name] = {}
-            capabilities = self.capabilities(svc_name)
-            for capability in capabilities:
-                response[svc_name][capability] = capabilities.get(capability, {})
-                if response[svc_name][capability] == None:
-                    response[svc_name][capability] = {}
-                response[svc_name][capability]['value'] = launchConfig.get(capability)
+            if self.excluded(svc_name):
+                continue
+            response[svc_name] = {
+                'settings': self.describe_settings(service),
+                'environment': self.describe_environment(service)
+            }
         return response
+
+    def excluded(self, svc_name):
+        return self.dig(self.config.services_config, [svc_name, 'exclude'])
 
     def render(self, uri, action=None, body=None):
         """
         Render is the workhorse. It takes a URI and optional action or body
         If there is an action, a POST is made to the URI for that action
-        If there is a body, a PUT is made to the URI with that body
+        If there is a body, a POST is made to the URI with that body
         If there is neither, a GET is made to the URI
         In all cases, we return a dict of the JSON response (even on errors)
         Upon exception, it will print an error message and exit.
@@ -386,6 +467,7 @@ class RancherClient:
             response = requests.post(url, json=body, auth=auth, headers=self.headers)
         elif body:
             print("PUT {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
+            self.print(body)
             response = requests.put(url, json=body, auth=auth, headers=self.headers)
         else:
             print("GET {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
@@ -431,8 +513,10 @@ class RancherConfig:
         self.project = conf.get('project', os.getenv('OPTUNE_PROJECT'))
         self.stack = conf.get('stack', os.getenv('OPTUNE_STACK'))
         self.services_config = conf.get('services', {})
-        self.services_defaults = { 'environment': None, 'vcpu': None,
-                                   'memoryMb':    None, 'count':    None }
+        self.rancher_to_servo = { 'vcpu': 'cpu', 'memoryMb': 'mem', 'scale': 'replicas' }
+        self.services_defaults = { 'vcpu': { 'min': 0.1, 'max': 3.5, 'type': 'range' },
+                                   'memoryMb': { 'min': 0.25, 'max': 4, 'type': 'range'},
+                                   'scale': { 'min': 1, 'max': 10, 'type': 'range' } }
 
     def read_config(self, filename):
         """

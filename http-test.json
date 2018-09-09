@@ -1,23 +1,40 @@
 {
-    "back": {
-        "cpu": 2,
-        "mem": 3,
-        "replicas": 2
-    },
-    "front": {
-        "cpu": 1,
-        "environment": {
-            "MEMORY": 1,
-            "HACKS": 1,
-            "value": null,
-            "GC": "-XX:+UseSerialGC"
-        },
-        "mem": 2,
-        "replicas": 1
-    },
-    "http-slb" : {
-      "labels" : {
-        "com.opsani.exluded": "true"
-      }
+    "rancher": {
+        "services": {
+            "back": {
+                "settings": {
+                    "cpu": {
+                        "value": 1
+                    },
+                    "mem": {
+                        "value": 4
+                    },
+                    "replicas": {
+                        "value": 1
+                    }
+                }
+            },
+            "front": {
+                "environment": {
+                    "MEMORY": {
+                        "value": 2
+                    },
+                    "GC": {
+                        "value": "-XX:+UseSerialGC FOO=1"
+                    }
+                },
+                "settings": {
+                    "cpu": {
+                        "value": 1
+                    },
+                    "mem": {
+                        "value": 3
+                    },
+                    "replicas": {
+                        "value": 2
+                    }
+                }
+            }
+        }
     }
 }

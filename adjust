@@ -13,43 +13,6 @@ from client import RancherConfig
 
 class RancherAdjust:
     VERSION="0.1"
-    # valid mem units: E, P, T, G, M, K, Ei, Pi, Ti, Gi, Mi, Ki
-    # nb: 'm' suffix found after setting 0.7Gi
-    MUMAP = {"E":1000**6,  "P":1000**5,  "T":1000**4,  "G":1000**3,  "M":1000**2,  "K":1000, "m":1000**-1,
-            "Ei":1024**6, "Pi":1024**5, "Ti":1024**4, "Gi":1024**3, "Mi":1024**2, "Ki":1024}
-    def memunits(self, s):
-        '''convert a string for memory resource (with optional unit suffix) into a number'''
-        for u,m in MUMAP.items():
-            if s.endswith(u):
-                return ( float(s[:-len(u)]) * m )
-        return (float(s))
-
-    # Maps rancher keys to keys which servo understands
-    def map_rancher_to_servo(self, dict):
-        for service in dict.keys():
-            service_settings = dict[service]
-            service_settings['cpu'] = service_settings.pop('vcpu', {})
-            service_settings['replicas'] = service_settings.pop('count', {})
-            if service_settings['replicas'].get('value') is None:
-                service_settings['replicas']['value'] = 1
-            service_settings['mem'] = service_settings.pop('memoryMb', {})
-            if service_settings['mem'].get('value'):
-                service_settings['mem']['value'] = int(service_settings['mem']['value']) / 1024**2 # convert to G
-            # environment is the same
-            dict[service] = service_settings
-        return dict
-
-    # Maps servo keys to keys which rancher understands
-    def map_servo_to_rancher(self, dict):
-        for service in dict.keys():
-            service_settings = dict[service]
-            service_settings['vcpu'] = service_settings.pop('cpu', None)
-            service_settings['count'] = service_settings.pop('replicas', None)
-            service_settings['memoryMb'] = service_settings.pop('mem', None)
-            if service_settings['memoryMb']:
-                service_settings['memoryMb'] = int(service_settings['memoryMb']) * 1024**2 # convert to M
-            dict[service] = service_settings
-        return dict
 
     def __init__(self, *args, **kwargs):
         self.config = RancherConfig()
@@ -66,7 +29,6 @@ class RancherAdjust:
     def describe(self, stack_id):
         try:
             r = self.client.describe(stack_id)
-            r = self.map_rancher_to_servo(r)
         except (Exception) as e:
             traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
@@ -76,9 +38,13 @@ class RancherAdjust:
 
     def adjust(self, stackname):
         data = json.load(sys.stdin)
-        data = self.map_servo_to_rancher(data)
+        data = data.get('rancher', {}).get('services', {})
         try:
-            self.client.services(name=stackname, action='upgrade', body=data[stackname])
+            for servicename in data.keys():
+                try:
+                    self.client.services(stack_name=stackname, name=servicename, action='upgrade', body=data[servicename])
+                except PermissionError as e:
+                    print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
         except Exception as e:
             traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))

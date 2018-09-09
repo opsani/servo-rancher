@@ -12,17 +12,26 @@ rancher:
   # We currently only support Rancher services
   services:
     front:
-      # mem, cpu, and replicas are not required, as they are auto discovered.
-      # Defines the list of supported environtment variables. Any not in the list are not allowed.
-      # Ajust will pass a numeric value and we use units to determine how to convert the value.
-      # If the unit is not recognized, the value is passed as is.
       environment:
+        # mem, cpu, and replicas are not required, as they are auto discovered.
+        # Defines the list of supported environtment variables. Any not in the list are not allowed.
+        # Ajust will pass a numeric value and we use units to determine how to convert the value.
+        # If the unit is not recognized, the value is passed as is.
         MEMORY:
+          min: 0.25
+          max: 2
+          step: 0.25
+          type: range
           units: M # Can be m, K, M, G, T, P, or E
-        GC: null
+        GC:
+          type: string
     back:
       environment:
         MEMORY:
+          min: 0.25
+          max: 2
+          step: 0.25
+          type: range
           units: G
     # The 'http-slb' service is excluded, and cannot be modified
     http-slb:
