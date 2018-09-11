@@ -114,13 +114,14 @@ class RancherClient:
             return None
         return merged
 
-    def merge(self, source, destination):
+    def merge(self, source = {}, destination = {}):
         """
         Python's default dict merge is shallow. This is a recursive deep dictionary merge
         :param source:  The dictionary to merge from
         :param destination: The dictionary to merge into
         :returns: a merged hash
         """
+        destination = {} if destination is None else destination
         for key, value in source.items():
             if isinstance(value, dict):
                 # get node or create one
@@ -187,22 +188,24 @@ class RancherClient:
 
         uri = self.services_uri(project_name, stack_name, name)
         if body and action == 'upgrade':
-            body = self.prepare_service_upgrade(name, body)
+            strategy = self.prepare_service_upgrade(name, body)
             service = self.services(name=name)
             # only try to upgrade if the service is active
-            #if service.get('state') == 'active':
-            #    self.render(uri, action=action, body=body)
-            #self.wait_for_upgrade(name)
+            if service.get('state') == 'active':
+                self.render(uri, action=action, body=strategy)
+            self.wait_for_upgrade(name)
 
             # this commits
-            #self.services(name=name, action='finishupgrade')
-
+            response = self.services(name=name, action='finishupgrade')
+            print("finished")
             # now we can scale the service if needed
-            scale_target = body.get('scale', 1)
+            scale_target = self.dig(body, ['settings', 'replicas', 'value'])
             if service.get('scale') != scale_target:
-                return self.services(project_name, stack_name, name, body = { 'id': service.get('id'), 'scale': scale_target })
-
-        return self.render(uri, action, body=body)
+                return self.services(project_name=project_name, stack_name=stack_name, name=name, action=None, body={'id': service.get('id'), 'scale': scale_target})
+            else:
+                return response
+        else:
+            return self.render(uri, action, body=body)
 
     def stacks_uri(self, project_name=None, name=None):
         """
@@ -260,9 +263,6 @@ class RancherClient:
         }
         """
         rancher = { 'environment': {} }
-        environment = self.dig(service,  ['environment'])
-        for env in environment.keys():
-            rancher['environment'][env] = self.dig(environment, [env, 'value'])
 
         settings = self.dig(service,  ['settings'])
         for setting in settings.keys():
@@ -274,6 +274,9 @@ class RancherClient:
                 value = self.dig(settings, [setting, 'value'])
                 if isinstance(value, int):
                     rancher['memoryMb'] =  value * 1024**2
+            else:
+                rancher['environment'][setting] = self.dig(settings, [setting, 'value'])
+
 
         return rancher
 
@@ -426,10 +429,9 @@ class RancherClient:
             if self.excluded(svc_name):
                 continue
             response[svc_name] = {
-                'settings': self.describe_settings(service),
-                'environment': self.describe_environment(service)
+                'settings': self.merge(self.describe_settings(service), self.describe_environment(service))
             }
-        return response
+        return { 'application': { 'components': response} }
 
     def excluded(self, svc_name):
         return self.dig(self.config.services_config, [svc_name, 'exclude'])
