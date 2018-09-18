@@ -1,0 +1,38 @@
+# This is a sample configuration for a Rancher service. It defines the operating parameters for
+# each service. It is not a required file, and by default, the servo will be allowed to pass
+# any values it wants for mem, cpu, and replicas.
+# Environment variables MUST be whitelisted in this file or they are automatically removed.
+rancher:
+  stack: "http-test"                                # Rancher Stack to use. Overrides OPTUNE_STACK
+  project: "Default"                                # Rancher Project to use. Overrides OPTUNE_PROJECT
+  api_url: "http://rancher.kumulus.co:8080/v2-beta" # Rancher API endpoint. Overrides OPTUNE_API_URL
+  # api_key: "ABCDEFG"                              # Rancher API key. Overrides OPTUNE_API_KEY
+  # api_secret: "HIJKLMNO"                          # Rancher API secret. Overrides OPTUNE_API_SECRET
+
+  # We currently only support Rancher services
+  services:
+    front:
+      environment:
+        # mem, cpu, and replicas are not required, as they are auto discovered.
+        # Defines the list of supported environtment variables. Any not in the list are not allowed.
+        # Ajust will pass a numeric value and we use units to determine how to convert the value.
+        # If the unit is not recognized, the value is passed as is.
+        MEMORY:
+          min: 0.25
+          max: 2
+          step: 0.25
+          type: range
+          units: M # Can be m, K, M, G, T, P, or E
+        GC:
+          type: string
+    back:
+      environment:
+        MEMORY:
+          min: 0.25
+          max: 2
+          step: 0.25
+          type: range
+          units: G
+    # The 'http-slb' service is excluded, and cannot be modified
+    http-slb:
+      exclude: true
