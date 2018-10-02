@@ -485,7 +485,7 @@ class RancherClient:
                 message = json.loads(response.text)['message']
             except Exception:
                 message = response.text     # cannot be parsed as JSON, treat as text
-            error = { 'error': response.status_code, 'class': 'failure', 'message': data.get('message') }
+            error = { 'error': response.status_code, 'class': 'failure', 'message': message }
             self.print(error)
             sys.exit(3)
 
