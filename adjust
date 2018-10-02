@@ -55,6 +55,8 @@ class RancherAdjust:
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
             sys.exit(3)
 
+        self.client.print(dict(status="ok"))
+
     def run(self):
         if self.args.version:
             print(self.VERSION)
