@@ -475,25 +475,40 @@ class RancherClient:
             print("GET {}".format(url), file=sys.stderr) # DEBUG URL info to stderr
             response = requests.get(url, auth=auth, headers=self.headers)
 
-        data = json.loads(response.text)
-
+        # check for error and report/terminate if failed
         try:
             response.raise_for_status()
-            return data
         except requests.exceptions.HTTPError as http_error:
-            self.print(response.status_code)
-            self.print(data, file=sys.stderr)
-            error = { 'error': response.status_code, 'class': 'failure', 'message:': data.get('message') }
+            print("Rachner API call failed, status code {}, response:\n---\n{}\n---\n".format(
+                response.status_code, response.text), file=sys.stderr)
+            try:
+                message = json.loads(response.text)['message']
+            except Exception:
+                message = response.text     # cannot be parsed as JSON, treat as text
+            error = { 'error': response.status_code, 'class': 'failure', 'message': data.get('message') }
             self.print(error)
             sys.exit(3)
+
+        # try to parse response, report error if it fails
+        try:
+            data = json.loads(response.text)
+        except Exception as e:
+            message = "Failed to parse Rancher API response as JSON: {}\nContents:\n---\n{}\n---\n".format(str(e), response.text)
+            print(message, file=sys.stderr)
+            error = { 'error': 500, 'class': 'failure', 'message': message }
+            self.print(error)
+            sys.exit(3)
+
+        return data
 
     def print(self, data, file=sys.stdout):
         """
         Helper to print out a dict payload
         :param data:
         :param file:  (Default value = sys.stdout)
+        Note that each payload must be printed on a single line, so no indent/pretty print allowed
         """
-        print(json.dumps(data, sort_keys=True, indent=4), file=file)
+        print(json.dumps(data, sort_keys=True), file=file)
 
 class RancherConfig:
     """
