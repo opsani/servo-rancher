@@ -413,7 +413,7 @@ class RancherClient:
                 val = service[key]
             else:
                 val = launch_config[key]
-            if key == 'memoryMb':
+            if key == 'memoryMb' and val is not None:
                 val = val / 1024 # convert from memoryMb to mem in GiB
             response[servo_key]['value'] = val
         return self.pop_none(response)
