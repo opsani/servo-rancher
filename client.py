@@ -197,7 +197,7 @@ class RancherClient:
 
             # this commits
             response = self.services(name=name, action='finishupgrade')
-            print("finished")
+            #print("finished", file=sys.stderr)
             # now we can scale the service if needed
             scale_target = self.dig(body, ['settings', 'replicas', 'value'])
             if service.get('scale') != scale_target:
