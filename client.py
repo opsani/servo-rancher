@@ -520,6 +520,13 @@ class RancherConfig:
                                    'memoryMb': { 'min': 0.25, 'max': 4, 'type': 'range'},
                                    'scale': { 'min': 1, 'max': 10, 'type': 'range' } }
 
+        # append Rancher API endpoint
+        assert not self.api_url.endswith('v2-beta'), "Rancher API URL must not contain the v2-beta endpoint string"
+        if not self.api_url.endswith('/'):
+            self.api_url += '/'
+        self.api_url += 'v2-beta'
+
+
     def read_config(self, filename):
         """
         Reads a YAML configuration file.

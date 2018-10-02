@@ -5,7 +5,7 @@
 rancher:
   stack: "http-test"                                # Rancher Stack to use. Overrides OPTUNE_STACK
   project: "Default"                                # Rancher Project to use. Overrides OPTUNE_PROJECT
-  api_url: "http://rancher.kumulus.co:8080/v2-beta" # Rancher API endpoint. Overrides OPTUNE_API_URL
+  api_url: "http://rancher.kumulus.co:8080/"        # Rancher API endpoint. Overrides OPTUNE_API_URL
   # api_key: "ABCDEFG"                              # Rancher API key. Overrides OPTUNE_API_KEY
   # api_secret: "HIJKLMNO"                          # Rancher API secret. Overrides OPTUNE_API_SECRET
 

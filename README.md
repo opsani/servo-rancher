@@ -29,7 +29,7 @@ a file called `.env` in the root directory with adjust.
 
 `.env`
 ```
-OPTUNE_API_URL='http://rancher.api/v2-beta'
+OPTUNE_API_URL='http://rancher.api/'
 OPTUNE_API_KEY=myrancherapikey
 OPTUNE_API_SECRET=myranchersecretkey
 OPTUNE_PROJECT=Default
