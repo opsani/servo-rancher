@@ -19,16 +19,21 @@ class RancherAdjust:
         self.client = RancherClient(self.config)
 
         self.parser = argparse.ArgumentParser(description='Adjust Rancher Stack Settings')
-        self.parser.add_argument('stackname', nargs='?', help='Name of the stack to update. Pass a capability.json file to update that stack.', default=None)
-        self.parser.add_argument('--version', help='Print the current version', action='store_true')
-        self.parser.add_argument('--info', help='Print version and capabilities in JSON.', action='store_true')
-        self.parser.add_argument('--describe', nargs='?', help='Describe actions which can be performed on a stack.', action='append')
+        self.parser.add_argument('app_id', help='Default stack name to use. Pass a JSON object with settings to stdin in order to update that stack.', default=None)
+        self.parser.add_argument('--version', help='Print the current driver version', action='store_true')
+        self.parser.add_argument('--info', help='Print driver version and capabilities.', action='store_true')
+        self.parser.add_argument('--describe', help='Describe stack configuration.', action='store_true')
+        self.parser.add_argument('--query', dest='describe', help='Alias for --describe', action='store_true')
 
         self.args = self.parser.parse_args()
 
-    def describe(self, stack_id):
+        # set app_id as stack name if stack not configured
+        if not self.config.stack: # empty or not defined
+            self.config.stack = self.args.app_id
+
+    def describe(self):
         try:
-            r = self.client.describe(stack_id)
+            r = self.client.describe(self.config.stack)
         except (Exception) as e:
             traceback.print_exc(file=sys.stderr)
             print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
@@ -36,13 +41,13 @@ class RancherAdjust:
 
         self.client.print(r)
 
-    def adjust(self, stackname):
+    def adjust(self):
         data = json.load(sys.stdin)
         data = data.get('application', {}).get('components', {})
         try:
             for servicename in data.keys():
                 try:
-                    self.client.services(stack_name=stackname, name=servicename, action='upgrade', body=data[servicename])
+                    self.client.services(stack_name=self.config.stack, name=servicename, action='upgrade', body=data[servicename])
                 except PermissionError as e:
                     print(json.dumps({"error":e.__class__.__name__, "class":"failure", "message":str(e)}))
         except Exception as e:
@@ -56,9 +61,9 @@ class RancherAdjust:
         elif self.args.info:
             print(json.dumps({"version":self.VERSION, "has_cancel":True}))
         elif self.args.describe:
-            self.describe(self.args.describe[0])
-        elif self.args.stackname:
-            self.adjust(self.args.stackname)
+            self.describe()
+        elif self.args.app_id: # app_id is specified with no options - means adjust
+            self.adjust()
         else:
             self.parser.print_help()
 
