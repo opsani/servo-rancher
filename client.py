@@ -267,12 +267,13 @@ class RancherClient:
         settings = self.dig(service,  ['settings'])
         for setting in settings.keys():
             if setting == 'cpu':
-                rancher['vcpu'] = self.dig(settings, [setting, 'value'])
+                rancher['cpuQuota'] = self.dig(settings, [setting, 'value']) * 1000 * 100
+                rancher['cpuPeriod'] = 1000 * 100
             elif setting == 'replicas':
                 rancher['scale'] = self.dig(settings, [setting, 'value'])
             elif setting == 'mem':
                 value = self.dig(settings, [setting, 'value'])
-                rancher['memoryMb'] = value * 1024 # convert mem GiB into memoryMb
+                rancher['memory'] = value * 1024**3 # convert mem GiB into bytes
             else:
                 rancher['environment'][setting] = self.dig(settings, [setting, 'value'])
 
@@ -413,8 +414,10 @@ class RancherClient:
                 val = service[key]
             else:
                 val = launch_config[key]
-            if key == 'memoryMb' and val is not None:
-                val = val / 1024 # convert from memoryMb to mem in GiB
+            if key == 'memory' and val is not None:
+                val = val / (1024**3) # convert from memory bytes to mem in GiB
+            elif key == 'cpuQuota' and val is not None:
+                val = val / (1000*100) #TODO: make it use cpuPeriod, if available
             response[servo_key]['value'] = val
         return self.pop_none(response)
 
@@ -532,9 +535,9 @@ class RancherConfig:
         self.project = conf.get('project', os.getenv('OPTUNE_PROJECT'))
         self.stack = conf.get('stack', os.getenv('OPTUNE_STACK'))
         self.services_config = conf.get('services', {})
-        self.rancher_to_servo = { 'vcpu': 'cpu', 'memoryMb': 'mem', 'scale': 'replicas' }
-        self.services_defaults = { 'vcpu': { 'min': 0.1, 'max': 3.5, 'type': 'range' },
-                                   'memoryMb': { 'min': 0.25, 'max': 4, 'type': 'range'},
+        self.rancher_to_servo = { 'cpuQuota': 'cpu', 'memory': 'mem', 'scale': 'replicas' }
+        self.services_defaults = { 'cpuQuota': { 'min': 0.1, 'max': 3.5, 'type': 'range' },
+                                   'memory': { 'min': 0.25, 'max': 4, 'type': 'range'},
                                    'scale': { 'min': 1, 'max': 10, 'type': 'range' } }
 
         # append Rancher API endpoint

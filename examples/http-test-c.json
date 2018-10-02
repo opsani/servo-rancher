@@ -1,0 +1,38 @@
+{
+    "application": {
+        "components": {
+            "back": {
+                "settings": {
+                    "cpu": {
+                        "value": 0.25
+                    },
+                    "mem": {
+                        "value": 1
+                    },
+                    "replicas": {
+                        "value": 1
+                    }
+                }
+            },
+            "front": {
+                "settings": {
+                    "cpu": {
+                        "value": 0.25
+                    },
+                    "mem": {
+                        "value": 1
+                    },
+                    "replicas": {
+                        "value": 1
+                    },
+                    "MEMORY": {
+                        "value": 3
+                    },
+                    "GC": {
+                        "value": "-XX:+UseSerialGC FOO=2"
+                    }
+                }
+            }
+        }
+    }
+}
