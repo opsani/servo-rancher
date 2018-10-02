@@ -272,8 +272,7 @@ class RancherClient:
                 rancher['scale'] = self.dig(settings, [setting, 'value'])
             elif setting == 'mem':
                 value = self.dig(settings, [setting, 'value'])
-                if isinstance(value, int):
-                    rancher['memoryMb'] =  value * 1024**2
+                rancher['memoryMb'] = value * 1024 # convert mem GiB into memoryMb
             else:
                 rancher['environment'][setting] = self.dig(settings, [setting, 'value'])
 
@@ -411,9 +410,12 @@ class RancherClient:
             servo_key = self.config.rancher_to_servo.get(key, key)
             response[servo_key] = self.config.services_defaults[key]
             if key == 'scale':
-                response[servo_key]['value'] = service[key]
+                val = service[key]
             else:
-                response[servo_key]['value'] = launch_config[key]
+                val = launch_config[key]
+            if key == 'memoryMb':
+                val = val / 1024 # convert from memoryMb to mem in GiB
+            response[servo_key]['value'] = val
         return self.pop_none(response)
 
     def describe(self, stack_name=None):
