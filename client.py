@@ -10,7 +10,8 @@ import signal
 import sys, json, os
 import time
 import yaml
-import pdb
+import re
+#import pdb
 
 load_dotenv()
 
@@ -19,6 +20,14 @@ if "http_proxy" in os.environ:
     del os.environ['http_proxy']
 if "https_proxy" in os.environ:
     del os.environ['https_proxy']
+
+# number normalization
+def number(x):
+    rnd_x = round(x, 0)
+    if abs(x - rnd_x) < 0.000001:
+        return int(rnd_x)
+    else:
+        return x
 
 # Client is a partial implementation of the Rancher API
 class RancherClient:
@@ -36,8 +45,8 @@ class RancherClient:
 
     def g_to_unit(self, size, convert_to):
         '''
-        Converts a size value in G to another size
-        :param size: the size in G of the value to be converted
+        Converts a size value in Gi to another size
+        :param size: the size in Gi of the value to be converted
         :param convert_to: the units to convert to
         :returns: the converted size or the original value if unsupported.
         '''
@@ -45,7 +54,20 @@ class RancherClient:
             if convert_to.startswith(units):
                 size = ( float(size) * 1024 ** power )
                 break
-        return float(size) if size < 1 else int(size)
+        return number(size)
+
+    def unit_to_g(self, val, convert_from):
+        '''
+        Converts a size value from arbitrary unit unto Gi
+        :param val: the value to be converted to Gi
+        :param convert_from: the units to convert from
+        :returns: the converted value in Gi units, or the original value if unsupported.
+        '''
+        for units, power in self.MUMAP.items():
+            if convert_from.startswith(units):
+                val = ( float(val) / 1024 ** power )
+                break
+        return number(val)
 
     def names_to_ids(self, response):
         """
@@ -390,10 +412,33 @@ class RancherClient:
     def describe_environment(self, service):
         launch_env = self.dig(service, ['launchConfig', 'environment'])
         environment = self.dig(self.capabilities(service.get('name')), ['environment'])
+
+        service_name = service.get('name')
+        config = self.config.services_config.get(service_name, {})
+
         response = {}
         for key in environment:
             response[key] = environment.get(key, {})
-            response[key]['value'] = launch_env.get(key)
+            value = launch_env.get(key)
+
+            # extract number from strings
+            if isinstance(value, str):  # will be string if prefix or suffix are present
+                match = re.match(r'([^.0-9]*)([.0-9]*)([^.0-9]*)$', value) # split any prefix/suffix
+                #print('@@@ Parsed value for {}.{}: "{}" splits into {}'.format(service_name, key, value, match.groups()), file=sys.stderr)
+                value = float(match.group(2)) # the middle group is the actual number
+ 
+            # convert value from specified unit to Gi
+            try:
+                spec = self.dig(config, ['environment', key])
+                unit = spec['units']
+                if unit:
+                    value = self.unit_to_g(value, unit)
+                    #print('@@@ Converted value for {}.{}: "{}" splits into {}'.format(service_name, key, value, unit), file=sys.stderr)
+            except Exception as e:
+                #print('@@@ Parse failed for {}.{} value {} (spec {}): {}: {}'.format(service_name, key, value, spec, type(e).__name__, str(e)), file=sys.stderr)
+                pass # leave value unchanged
+
+            response[key]['value'] = value
         return self.pop_none(response)
 
     def pop_none(self, dict):

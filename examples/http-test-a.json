@@ -6,6 +6,9 @@
                     "cpu": {
                         "value": 1
                     },
+                    "MEMORY": {
+                        "value": 2
+                    },
                     "mem": {
                         "value": 4
                     },
