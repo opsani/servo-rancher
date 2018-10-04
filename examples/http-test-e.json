@@ -10,7 +10,7 @@
                         "value": 0.25
                     },
                      "MEMORY": {
-                        "value": 5
+                        "value": 2
                     },
                     "replicas": {
                         "value": 1
