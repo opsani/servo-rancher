@@ -418,7 +418,8 @@ class RancherClient:
 
         response = {}
         for key in environment:
-            response[key] = environment.get(key, {})
+            response[key] = environment.get(key, {}).copy()
+            response[key].pop('units', None) # delete 'units' attribute if defined - not to be passed to servo
             value = launch_env.get(key)
 
             # extract number from strings
