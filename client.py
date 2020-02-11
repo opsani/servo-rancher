@@ -29,6 +29,9 @@ def number(x):
     else:
         return x
 
+class ConfigError(Exception):
+    pass
+
 # Client is a partial implementation of the Rancher API
 class RancherClient:
     """ """
@@ -136,13 +139,14 @@ class RancherClient:
             return None
         return merged
 
-    def merge(self, source = {}, destination = {}):
+    def merge(self, source = None, destination = None):
         """
         Python's default dict merge is shallow. This is a recursive deep dictionary merge
         :param source:  The dictionary to merge from
         :param destination: The dictionary to merge into
         :returns: a merged hash
         """
+        source = {} if source is None else source
         destination = {} if destination is None else destination
         for key, value in source.items():
             if isinstance(value, dict):
@@ -250,7 +254,7 @@ class RancherClient:
         uri = self.stacks_uri(project_name, name)
         return self.render(uri, action, body)
 
-    def filter_environment(self, service_name, environment = {}):
+    def filter_environment(self, service_name, environment = None):
         """
         Filters out any environment variables which are not configured in our config.yaml.
         If a config variable has a 'units' option, then it will convert an integer value from
@@ -259,6 +263,7 @@ class RancherClient:
         :param environment: The launchConfig environment changes (Defaule value = {})
         :returns: An dictionary environment filtred based on our config rules
         """
+        environment = {} if environment is None else environment
         allowed_env = self.config.services_config.get(service_name, {}).get('environment', {})
 
         for key in list(environment.keys()):
@@ -435,7 +440,7 @@ class RancherClient:
                 if unit:
                     value = self.unit_to_g(value, unit)
                     #print('@@@ Converted value for {}.{}: "{}" splits into {}'.format(service_name, key, value, unit), file=sys.stderr)
-            except Exception as e:
+            except Exception as e: # nosec
                 #print('@@@ Parse failed for {}.{} value {} (spec {}): {}: {}'.format(service_name, key, value, spec, type(e).__name__, str(e)), file=sys.stderr)
                 pass # leave value unchanged
 
@@ -605,9 +610,9 @@ class RancherConfig:
         except IOError as e:
             if e.errno == errno.ENOENT:
                 return {}
-            raise ConfigError("cannot read configuration from {}:{}".format(config, e.strerror))
+            raise ConfigError("cannot read configuration from {}:{}".format(filename, e.strerror))
         except yaml.error.YAMLError as e:
-            raise ConfigError("syntax error in {}: {}".format(config, str(e)))
+            raise ConfigError("syntax error in {}: {}".format(filename, str(e)))
 
     def read_key(self, filename, default_env=None):
         """
